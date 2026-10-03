@@ -1,0 +1,138 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+# Copyright 2026 webarkit contributors. Part of artoolkit-nft-bench.
+"""Metrics computed from a bank (ground truth) and a result (engine output). See the spec, section 5."""
+from __future__ import annotations
+
+from collections import defaultdict
+
+import numpy as np
+
+from .geometry import corner_error_px, pose_error, pose_valid, project_corners
+from .schema import Bank, Result
+
+VALID_STATES = ("detected", "tracked")
+
+
+def _pct(v: list[float]) -> dict:
+    if not v:
+        return {"p50": None, "p95": None, "max": None}
+    a = np.asarray(v, dtype=float)
+    return {"p50": float(np.percentile(a, 50)), "p95": float(np.percentile(a, 95)), "max": float(a.max())}
+
+
+def _q(v: list[float], q: float):
+    return float(np.percentile(np.asarray(v, dtype=float), q)) if v else None
+
+
+def track_time_share(states: list[list[str]], times: list[list[float]], bin_ms: float = 10.0) -> float:
+    """Share of time spent tracking, as in webarkit/webarkit benchmarks.
+
+    Each sequence is a stretch. Bins of bin_ms are laid from the stretch's first frame time up to (not including) its
+    last frame time; each bin takes the state of the most recent frame at or before the bin start. Bins are pooled.
+    """
+    tracked = total = 0
+    for st, ts in zip(states, times):
+        if len(st) < 2:
+            continue
+        ms = [round(t * 1000.0, 6) for t in ts]
+        end, k, nbin = ms[-1], 0, 0
+        while True:
+            b = ms[0] + nbin * bin_ms
+            if b >= end - 1e-9:
+                break
+            while k + 1 < len(ms) and ms[k + 1] <= b + 1e-9:
+                k += 1
+            total += 1
+            tracked += st[k] == "tracked"
+            nbin += 1
+    return tracked / total if total else 0.0
+
+
+def jitter_px(corners_seq: np.ndarray) -> float:
+    """RMS of the second difference of projected corners over consecutive frames, shape (n, 4, 2)."""
+    c = np.asarray(corners_seq, dtype=float)
+    if len(c) < 3:
+        return 0.0
+    d2 = c[2:] - 2 * c[1:-1] + c[:-2]
+    return float(np.sqrt(np.mean(np.sum(d2 ** 2, axis=-1))))
+
+
+def _gt_corners(f, cam, w, h):
+    if f.gt_corners is not None:
+        return f.gt_corners
+    if f.gt_pose is not None:
+        return project_corners(f.gt_pose, cam, w, h)
+    return None
+
+
+def summarize(bank: Bank, result: Result, ok_px: float = 5.0) -> dict:
+    gt = {(f.seq, f.i): f for f in bank.frames}
+    W, H, cam = bank.marker_w_mm, bank.marker_h_mm, bank.camera
+    by_group = defaultdict(lambda: defaultdict(list))
+    for r in result.frames:
+        by_group[gt[(r.seq, r.i)].group][r.seq].append(r)
+
+    groups, all_states, all_times = {}, [], []
+    for name, seqs in by_group.items():
+        n = excl = valid = ok = lost_events = 0
+        px, mm, deg, jit, t_det, t_trk, t_tot, blocked = [], [], [], [], [], [], [], []
+        first_lock = None
+        for seq_frames in seqs.values():
+            seq_frames.sort(key=lambda r: r.i)
+            prev, run, states, times = None, [], [], []
+            for r in seq_frames:
+                f = gt[(r.seq, r.i)]
+                ok_pose = r.state in VALID_STATES and pose_valid(r.pose, W, H)
+                state = r.state if ok_pose else "lost"
+                states.append(state)
+                times.append(f.t)
+                if prev == "tracked" and state == "lost":
+                    lost_events += 1
+                if ok_pose and first_lock is None:
+                    first_lock = r.i
+                if state == "tracked":
+                    run.append(project_corners(r.pose, cam, W, H))
+                else:
+                    if len(run) >= 3:
+                        jit.append(jitter_px(np.stack(run)))
+                    run = []
+                prev = state
+                if r.t_detect_ms is not None:
+                    t_det.append(r.t_detect_ms)
+                if r.t_track_ms is not None:
+                    t_trk.append(r.t_track_ms)
+                t_tot.append(r.t_total_ms)
+                blocked.append(r.blocked_ms)
+                gc = _gt_corners(f, cam, W, H)
+                if gc is None:
+                    excl += 1
+                    continue
+                n += 1
+                if not ok_pose:
+                    continue
+                valid += 1
+                e = corner_error_px(r.pose, gc, cam, W, H)
+                if e < ok_px:
+                    ok += 1
+                    px.append(e)
+                    if f.gt_pose is not None:
+                        t_mm, r_deg = pose_error(r.pose, f.gt_pose, W, H)
+                        mm.append(t_mm)
+                        deg.append(r_deg)
+            if len(run) >= 3:
+                jit.append(jitter_px(np.stack(run)))
+            all_states.append(states)
+            all_times.append(times)
+        groups[name] = {
+            "n": n, "n_excluded": excl,
+            "valid_pct": 100.0 * valid / n if n else None, "ok_pct": 100.0 * ok / n if n else None,
+            "median_px": _q(px, 50), "p90_px": _q(px, 90), "median_mm": _q(mm, 50), "median_deg": _q(deg, 50),
+            "lost_events": lost_events, "first_lock_frame": first_lock,
+            "jitter_px": float(np.mean(jit)) if jit else None,
+            "t_detect_ms": _pct(t_det), "t_track_ms": _pct(t_trk), "t_total_ms": _pct(t_tot),
+            "blocked_ms_max": max(blocked) if blocked else None,
+        }
+    flat = [s for st in all_states for s in st]
+    return {"groups": groups,
+            "track_share": flat.count("tracked") / len(flat) if flat else 0.0,
+            "track_time_share": track_time_share(all_states, all_times)}
