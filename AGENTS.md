@@ -46,7 +46,9 @@ Do not claim a change is verified without running these.
 * Do not describe sibling projects (jsartoolkitNFT, WebARKitLib, webarkitlib-rs, ARnft) from memory; check the repository first
   (`gh repo view`, `gh api repos/<owner>/<repo>/readme`).
 * Do not copy code from projects with incompatible licences (e.g. WOFT, CC BY-NC-SA) into this LGPL repository.
-* New source files carry the LGPL-3.0-or-later header.
+* Every source file carries the LGPL header template used across webarkit (file name, project, SPDX `LGPL-3.0-or-later`, LGPL notice,
+  `Copyright 2026 WebARKit.`, author). Run `.venv/Scripts/python scripts/license_headers.py --fix` after adding files; the check
+  also runs inside `pytest`.
 * An accepted ADR's decision is never edited in place; supersede it with a new ADR.
 
 ## Git and contribution workflow

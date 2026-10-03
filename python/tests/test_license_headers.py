@@ -1,5 +1,5 @@
 #
-#  __init__.py
+#  test_license_headers.py
 #  artoolkit-nft-bench
 #
 #  This file is part of artoolkit-nft-bench.
@@ -23,3 +23,13 @@
 #
 #  Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
 #
+
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+
+def test_every_source_file_has_the_lgpl_header():
+    p = subprocess.run([sys.executable, str(ROOT / "scripts/license_headers.py")], capture_output=True, text=True)
+    assert p.returncode == 0, p.stdout

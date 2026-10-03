@@ -1,5 +1,29 @@
-# SPDX-License-Identifier: LGPL-3.0-or-later
-# Copyright 2026 webarkit contributors. Part of artoolkit-nft-bench.
+#
+#  metrics.py
+#  artoolkit-nft-bench
+#
+#  This file is part of artoolkit-nft-bench.
+#
+#  SPDX-License-Identifier: LGPL-3.0-or-later
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#  Copyright 2026 WebARKit.
+#
+#  Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
+#
+
 """Metrics computed from a bank (ground truth) and a result (engine output). See the spec, section 5."""
 from __future__ import annotations
 

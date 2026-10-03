@@ -59,4 +59,6 @@ refuses to publish if any of these remains.
 
 ## License
 
-LGPL-3.0-or-later. New source files carry the same LGPL header as the existing ones.
+LGPL-3.0-or-later. Every source file starts with the same LGPL header template as webarkit/webarkit (file name, project,
+`SPDX-License-Identifier: LGPL-3.0-or-later`, the LGPL notice, `Copyright 2026 WebARKit.`, author). Add it with
+`.venv/Scripts/python scripts/license_headers.py --fix`; `pytest` fails if a file lacks it.
