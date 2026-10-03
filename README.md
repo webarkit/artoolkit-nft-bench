@@ -1,0 +1,66 @@
+# artoolkit5-refactor — CMake build + NFT quality harness
+
+Out-of-tree CMake build of the NFT-relevant part of ARToolKit5 (webarkit fork), plus a headless
+harness that measures **KPM detection** and **AR2 tracking** quality against synthetic ground truth.
+
+* `extern/artoolkit5` — git submodule ([webarkit/artoolkit5](https://github.com/webarkit/artoolkit5), pinned). **Never modified.**
+* `CMakeLists.txt`, `cmake/` — builds `ARUtil`, `AR`, `ARICP`, `AR2`, `KPM` (static) and the upstream `genTexData` tool.
+  Source lists are taken from the upstream `VisualStudio/vs2017/*.vcxproj` files. `config.h` is generated in the build tree.
+  GL / GLUT / video / OSG / examples are not built.
+* `tests/nft_eval.cpp` — the quality harness.
+* `data/markers/` — `pinball.jpg` (from upstream `doc/Marker images`) and the NFT dataset generated from it.
+* `tools/docker_build.sh` — Linux/gcc cross-check, run inside an `ubuntu:24.04` container.
+
+## Build (Windows, MSVC 2022)
+
+```bash
+git submodule update --init
+cmake -S . -B build/win-vs2022 -G "Visual Studio 17 2022" -A x64      # fetches zlib + libjpeg-turbo
+cmake --build build/win-vs2022 --config Release
+```
+
+`ARX_FETCH_DEPS=OFF` uses system zlib/libjpeg instead (Linux). On Windows, `ARUTIL_DISABLE_PTHREADS` is defined so the
+native Win32 threading path is used and pthreads-win32 is not needed.
+
+## Generate an NFT dataset
+
+`genTexData` is interactive unless every option is given:
+
+```bash
+cd data/markers
+../../build/win-vs2022/Release/genTexData.exe pinball.jpg -dpi=150 -min_dpi=30 -max_dpi=150 -level=2 -leveli=3 < /dev/null
+```
+
+## Run the quality harness
+
+```bash
+build/win-vs2022/tests/Release/nft_eval.exe dataset=data/markers/pinball image=data/markers/pinball.jpg dpi=150 \
+    mode=all trials=10 csv=results/win-msvc/pinball_full.csv
+```
+
+`dpi` must be the value passed to `genTexData -dpi=` (it fixes the marker's physical size in mm, which is what poses are expressed in).
+Options: `mode=detect|track|all`, `trials`, `seqlen`, `width`, `height`, `fovy`, `seed`, `scenarios=scale,tilt,...`, `kpm_proc`, `threads`, `ok_px`.
+
+### What it measures
+
+Frames are rendered from the marker image with a known pose (pinhole camera, 640x480, fovy 45°, mip-mapped + 2x2 supersampled,
+random smooth background). `found` = KPM returned a pose; `ok` = found **and** mean 2D corner reprojection error < `ok_px` (5 px).
+Detection sweeps one nuisance at a time (distance, tilt, in-plane roll, blur, noise, illumination, occlusion) with the others
+jittered around a nominal pose. Tracking runs KPM init + `ar2Tracking` on sequences with increasing motion speed (with motion blur).
+
+### Limits of this evaluation
+
+Synthetic frames are rendered from the very image the dataset was built from, with no lens distortion, rolling shutter, colour
+or JPEG artefacts. Treat the numbers as an **upper bound** and as a regression/comparison baseline between builds, not as an
+absolute field-performance figure. Real footage (no ground truth) is the next step.
+
+## Results so far (pinball.jpg, 640x480, 10 trials/level; synthetic ground truth)
+
+Full tables: `results/win-msvc/pinball_full.txt` (Windows, MSVC 2022) and `results/linux-gcc/pinball_full.txt` (Ubuntu 24.04, gcc 13).
+
+* Detection is reliable up to ~4x the "marker fills 80% of frame height" distance, tilt ≤ 55°, any in-plane roll, noise σ ≤ 30,
+  illumination down to 25% contrast, blur σ ≤ 3 px, and ≤ 40% occlusion. Median corner error is 0.2–0.5 px when it works.
+* Tracking (KPM init + AR2) holds 100% of frames up to 20 px/frame; at 35 px/frame (with motion blur) it fails.
+* Windows and Linux agree to within the 10-trial noise. `genTexData` output is **byte-identical** across platforms for
+  `.iset` and `.fset`; `.fset3` (FREAK) differs bit-wise (floating-point differences) but is interchangeable for matching.
+* One KPM detection takes ~30–70 ms at 640x480 (single thread); one `ar2Tracking` call ~1.2 ms.

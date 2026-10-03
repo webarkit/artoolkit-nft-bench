@@ -1,0 +1,3 @@
+[submodule "extern/artoolkit5"]
+	path = extern/artoolkit5
+	url = https://github.com/webarkit/artoolkit5.git
