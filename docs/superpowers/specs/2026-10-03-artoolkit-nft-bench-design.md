@@ -111,7 +111,7 @@ writing one runner. `nft_eval` becomes the `native` runner and the synthetic-fra
 
 ## 8. Phases
 
-1. **Repo and baseline.** Rename/organise, license, README; export synthetic frames; frame bank from `pinball-bench.mp4`;
+1. **Repo and baseline.** Rename/organise, license, README, contributor and agent files (section 11); export synthetic frames; frame bank from `pinball-bench.mp4`;
    corner segmentation + manual spot check; `native` runner on both banks at 220 dpi. Output: first results table.
 2. **WASM control.** Build the same sources with Emscripten (`emsdk` image already present); `wasm-same-src` runner in Node and browser.
 3. **jsartoolkitNFT.** Node and Chromium runners; comparison tables engine by engine.
@@ -131,7 +131,57 @@ Each phase ends with committed result files and a short written reading of them.
 
 ## 10. Repository
 
-Name: **`artoolkit-nft-bench`** (owner and visibility to be confirmed before anything is pushed). License: LGPL-3.0-or-later, consistent
+Name: **`artoolkit-nft-bench`**, owner `webarkit`, private for now (nothing is pushed until the spec is approved and the push is confirmed). Branches: `main` for stable releases, `dev` as the integration branch (section 11). License: LGPL-3.0-or-later, consistent
 with artoolkit5 and the webarkit organisation, since the harness links LGPL code. The artoolkit5 fork stays a submodule, never
 modified. Committed: sources, markers, the 1 MB test clip (with provenance), result summaries. Not committed: build trees, decoded frame
 banks, raw CSV logs.
+
+## 11. Contributor and agent documentation
+
+The repo ships the same set of guidance files as `webarkit/webarkit`, so humans and coding agents (Claude Code, GitHub Copilot,
+Gemini, Antigravity, Codex, Cursor, ...) get identical rules. One file is the source of truth; the others are thin pointers, so
+rules are written once and cannot drift.
+
+| File | Role |
+|---|---|
+| `CONTRIBUTING.md` | Human-facing workflow: pull requests, branches, conventional commits, what to run before opening a PR, benchmark-result rules. |
+| `AGENTS.md` | **Canonical agent instructions** (read natively by Codex, Cursor and others): project purpose, layout, build/run commands, hard rules (below). Links to `CONTRIBUTING.md` rather than copying it. |
+| `CLAUDE.md` | Imports `AGENTS.md` (`@AGENTS.md`), then a short Claude-specific section (Windows shell notes; never round-trip source files through PowerShell `Get-Content`/`Set-Content`, which corrupts encoding). |
+| `GEMINI.md` | Points to `AGENTS.md` (with an `@AGENTS.md` import where the Gemini CLI supports it) plus the critical rules inlined. |
+| `.github/copilot-instructions.md` | Copilot injects this file directly, so the critical rules are inlined here and it links to `AGENTS.md` for the rest. |
+| `.agents/instructions.md` | Pointer for Antigravity, matching the org layout. |
+| `.github/pull_request_template.md` | Reminds the author of the target branch, the PR-title format and the pre-PR checklist. |
+
+Any change to the rules is made in `AGENTS.md` / `CONTRIBUTING.md` only. Pointer files may inline the critical rules but never add new ones.
+
+### Workflow rules (stated in `CONTRIBUTING.md`, summarised in every agent file)
+
+* **Pull requests target `dev`, never `main`.** `main` is for stable releases only; the release PR is the single PR from `dev` into `main`.
+  One branch per task or issue, created from an up-to-date `dev`, named `type/short-description` (e.g. `feat/wasm-runner`, `docs/spec-update`).
+* **Conventional Commits** for both commit messages and PR titles: `type(scope): summary`, imperative and concise. Types: `feat`, `fix`,
+  `docs`, `refactor`, `test`, `chore`, `ci`. Breaking changes use `!` after the type/scope or a `BREAKING CHANGE:` footer.
+  Scopes: `native`, `wasm`, `jsartoolkitnft`, `frames` (frame banks and ground truth), `scorer`, `markers`, `runner`, `docs`, `ci`;
+  omit the scope for repo-wide changes.
+* **Language:** every repository artifact (code, comments, commits, PR titles and bodies, issues, docs) is in English, whatever language
+  the conversation with the agent uses.
+* **Verification before claiming done:** run the commands listed in `AGENTS.md` (CMake configure and build, the native smoke test, the
+  scorer on a committed sample result). Do not claim a change is verified without running them.
+* The repository's default branch is `main`, matching `webarkit/jsfeatNext` and `webarkit/purecv`. (`webarkit/webarkit` uses `master`;
+  the agent files say so to prevent copying the wrong name.)
+
+### Hard rules for agents (in `AGENTS.md`)
+
+* **Never modify `extern/artoolkit5`** (a submodule pinned to a commit) or any other upstream submodule; fix portability problems in
+  this repo's CMake instead, as already done for `<limits>` and `_LARGEFILE64_SOURCE`.
+* **Every published number carries its configuration header** (engine and version, build flags, threads, dpi, camera, host). A result
+  without it is not committed.
+* Do not commit build trees, decoded frame banks, raw CSV/log output, `.venv` or `node_modules`. Committed media is limited to small,
+  reproducible clips with recorded provenance.
+* Do not describe the status of sibling projects (jsartoolkitNFT, WebARKitLib, `webarkitlib-rs`, ARnft) from memory; check the repository
+  first (`gh repo view`, `gh api repos/<owner>/<repo>/readme`).
+* Do not use or copy code from projects with incompatible licences (e.g. WOFT, CC BY-NC-SA) into this LGPL repository.
+* New source files carry the LGPL-3.0-or-later header used by the rest of the repo.
+
+Open item: a CI check that PR titles follow Conventional Commits and that the pointer files still reference `AGENTS.md`. It is left to
+review at first, as in `webarkit/webarkit`, and can be added once the repository has CI.
+
