@@ -18,6 +18,8 @@
 - Every committed result carries its configuration header: engine and version, build flags, threads, dpi, camera, host.
 - Never commit build trees, decoded frame banks (`banks/`), raw CSV/logs, `.venv`, `node_modules`. Committed media: small reproducible clips with provenance only.
 - New source files carry the LGPL-3.0-or-later header used by the rest of the repo.
+- Results storage follows `docs/adr/0001-results-storage.md`: development results go to `results/local/` (git-ignored); only publications go to `webarkit/artoolkit-nft-bench-results` (same visibility as this repo), indexed by `results/manifest.json`.
+- Sensitive data: result headers contain only allow-listed host fields (`host_label` from the git-ignored `bench.local.json`, `os`, `cpu`, `cores`, `threads_hw`, `ram_gb`, `compiler`, `build_flags`, `runtime`). Never host names, user names, emails, absolute paths, environment variables, tokens, IP/MAC addresses or device serials.
 - Canonical marker: `pinball.jpg`, **220 dpi** (189.0 x 236.5 mm), `genTexData -dpi=220 -min_dpi=30 -max_dpi=220 -level=2 -leveli=1` (genTexData defaults for level/leveli, the same defaults NFT-Marker-Creator-App documents). Marker-dir names encode the parameters: `pinball-d220-l2-i1`.
 - Camera for every bank: pinhole, no distortion, `fovy` 45 deg, `cx=w/2`, `cy=h/2`, `fx=fy=(h/2)/tan(fovy/2)`. Synthetic banks 640x480; the real clip stays 1280x720.
 - Pose convention: 3x4 row-major `[R|t]`, marker to camera, millimetres, ARToolKit camera (x right, y down, z forward); marker frame origin at the image's bottom-left, y up, z toward the viewer; mm = px / dpi * 25.4. Pose arrays in JSON are the 12 floats row-major.
@@ -60,13 +62,14 @@ banks/ (git-ignored)   results/phase1/
 
 **Files:**
 - Create: `LICENSE` (LGPL-3.0 text), `CONTRIBUTING.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.github/pull_request_template.md`, `.agents/instructions.md`
-- Modify: `README.md` (what the repo is, link to spec and plan, layout), `.gitignore` (add `banks/`, `.venv/`, `node_modules/`, `__pycache__/`, `*.pyc`)
+- Modify: `README.md` (what the repo is, link to spec, plan and ADRs, layout), `.gitignore` (add `banks/`, `results/local/`, `bench.local.json`, `.venv/`, `node_modules/`, `__pycache__/`, `*.pyc`)
+- Already present: `docs/adr/0001-results-storage.md`
 
 **Interfaces:**
 - Produces: the contributor rules every later task follows; the `dev` branch and the `feat/phase-1-baseline` working branch.
 
-- [ ] **Step 1: Write `CONTRIBUTING.md`** with the spec section 11 workflow: PRs to `dev`, branch naming `type/short-description`, Conventional Commits with the scope list from Global Constraints, English-only, pre-PR verification commands (CMake build, `ctest`, `pytest`), release PR `dev` to `main`.
-- [ ] **Step 2: Write `AGENTS.md`** (canonical): what the project is, layout, the exact build/test commands (filled in as tasks add them; Task 1 lists the ones that already exist: CMake configure/build), and the hard rules from spec section 11 verbatim in substance. Link to `CONTRIBUTING.md`; do not copy it.
+- [ ] **Step 1: Write `CONTRIBUTING.md`** with the spec section 11 workflow: PRs to `dev`, branch naming `type/short-description`, Conventional Commits with the scope list from Global Constraints, English-only, pre-PR verification commands (CMake build, `ctest`, `pytest`), release PR `dev` to `main`, the results-storage rule (ADR-0001) and the allowed/forbidden data lists for published files.
+- [ ] **Step 2: Write `AGENTS.md`** (canonical): what the project is, layout, the exact build/test commands (filled in as tasks add them; Task 1 lists the ones that already exist: CMake configure/build), the hard rules from spec section 11 verbatim in substance, the ADR-0001 storage rule, and the allowed/forbidden data lists. Link to `CONTRIBUTING.md`; do not copy it.
 - [ ] **Step 3: Write the pointer files.** `CLAUDE.md` = `@AGENTS.md` plus Claude/Windows notes (prefer POSIX shell; never round-trip source through PowerShell `Get-Content`/`Set-Content`). `GEMINI.md` and `.agents/instructions.md` = pointer to `AGENTS.md` plus the critical rules inlined. `.github/copilot-instructions.md` = critical rules inlined plus link. `.github/pull_request_template.md` = base-branch reminder, PR-title format, checklist.
 - [ ] **Step 4: Verify consistency.** Run: `grep -L "AGENTS.md" CLAUDE.md GEMINI.md .github/copilot-instructions.md .agents/instructions.md` — expected: no output. Run: `grep -l "dev" CONTRIBUTING.md AGENTS.md .github/pull_request_template.md` — expected: all three listed.
 - [ ] **Step 5: Branches.** From `main`: `git checkout -b dev`, then `git checkout -b feat/phase-1-baseline`. Commit: `docs: add contributor and agent guidance, license and README`.
@@ -147,9 +150,9 @@ banks/ (git-ignored)   results/phase1/
 **Interfaces:**
 - Consumes: Task 4 `readBank`, `Camera`, `Marker`.
 - Produces: `struct EngineConfig{std::string dataset;Camera cam;int kpmProc;int threads;}`; class `Engine` with `bool init(const EngineConfig&)`, `bool detect(const uint8_t* grey,float pose[3][4],int* inliers,double* ms)`, `int track(const uint8_t* grey,float pose[3][4],double* ms)` (0 ok, negative lost), `void setInitPose(const float pose[3][4])`.
-- Produces: executable `nft_run bank=<dir> dataset=<path-no-ext> dpi=<f> out=<result.json> [threads=1 kpm_proc=1 repeats=1]`. Per sequence it resets state; per frame: if not tracking run `detect`, state `detected` or `lost`; else `track`, state `tracked` or `lost` (and tracking stops on loss). It never reads `gt_*`. With `repeats>1` the whole bank is run that many times (first repeat discarded as warm-up if `repeats>1`), and each frame's `t_*_ms` is the median over the kept repeats. Exit code 2 if `dpi` differs from the bank's `marker.dpi`. `result.json` follows the Task 2 schema with `header` keys: `engine="native"`, `engine_version` (submodule commit), `build` (compiler, config), `host`, `marker_dataset` (directory name), `marker_dpi`, `camera`, `params{threads,kpm_proc,repeats}`; `blocked_ms = t_total_ms` (synchronous).
+- Produces: executable `nft_run bank=<dir> dataset=<path-no-ext> dpi=<f> out=<result.json> [threads=1 kpm_proc=1 repeats=1]`. Per sequence it resets state; per frame: if not tracking run `detect`, state `detected` or `lost`; else `track`, state `tracked` or `lost` (and tracking stops on loss). It never reads `gt_*`. With `repeats>1` the whole bank is run that many times (first repeat discarded as warm-up if `repeats>1`), and each frame's `t_*_ms` is the median over the kept repeats. Exit code 2 if `dpi` differs from the bank's `marker.dpi`. `result.json` follows the Task 2 schema with `header` keys: `engine="native"`, `engine_version` (submodule commit), `build` (compiler, config), `host`, `marker_dataset` (directory name), `marker_dpi`, `camera`, `params{threads,kpm_proc,repeats}`; `blocked_ms = t_total_ms` (synchronous). `host` contains exactly the allow-listed fields from Global Constraints; `host_label` is read from `bench.local.json` (`"unlabelled"` if absent). Runs write to `results/local/` by default.
 
-- [ ] **Step 1: Failing test** `test_engine.cpp`: `test_detect_finds_marker_in_clean_synthetic_frame` (render one frontal frame with the 150-dpi dataset under `data/markers/pinball-d150-l2-i3/`; assert `detect` true and pose depth within 2% of truth), `test_track_after_detect_returns_ok_on_same_frame`.
+- [ ] **Step 1: Failing test** `test_engine.cpp`: `test_detect_finds_marker_in_clean_synthetic_frame` (render one frontal frame with the 150-dpi dataset under `data/markers/pinball-d150-l2-i3/`; assert `detect` true and pose depth within 2% of truth), `test_track_after_detect_returns_ok_on_same_frame`, `test_result_header_has_only_allowed_host_fields` (run `nft_run` on a 1-frame bank; parse the JSON; assert the `host` keys equal the allow-list exactly and that no string value contains the current user name, the machine name or a drive-letter absolute path).
 - [ ] **Step 2: Run** `ctest ... -R test_engine` — expected FAIL. **Step 3: Implement** `engine.*` and `nft_run.cpp`. **Step 4: Run** — expected PASS.
 - [ ] **Step 5: Smoke** `build/.../nft_run.exe bank=banks/smoke dataset=... dpi=150 out=results/smoke.json` on a 1-trial bank from `nft_export`, then `.venv/Scripts/python -m nftbench.score --bank banks/smoke --result results/smoke.json` — expected a table with `valid_pct` 100 for `detect/scale=1.5`.
 - [ ] **Step 6: Commit** `feat(runner): add native nft_run`.
@@ -211,7 +214,7 @@ banks/ (git-ignored)   results/phase1/
 ### Task 9: Canonical marker, banks at 220 dpi, native results
 
 **Files:**
-- Create: `data/markers/pinball-d220-l2-i1/` (via `scripts/make_marker.sh`), `scripts/run_phase1.sh`, `results/phase1/native-synthetic-t1.json`, `results/phase1/native-synthetic-tN.json`, `results/phase1/native-real-t1.json`, `results/phase1/native-real-tN.json`, `results/phase1/README.md`
+- Create: `data/markers/pinball-d220-l2-i1/` (via `scripts/make_marker.sh`), `scripts/run_phase1.sh`, `results/local/phase1/*.json` (not committed), `results/phase1/README.md` and `results/phase1/*.md` tables (committed)
 
 **Interfaces:**
 - Consumes: everything above. `scripts/run_phase1.sh` runs, in order: marker generation if missing, synthetic export at 220 dpi, `nft_run` with `threads=1` and with default threads (`threads=-1`, `repeats=5`) on the synthetic and real banks, then `nftbench.score` writing `results/phase1/README.md`.
@@ -221,7 +224,7 @@ banks/ (git-ignored)   results/phase1/
 - [ ] **Step 3:** Run `nft_run` (threads 1 and default, `repeats=5`) on `banks/synthetic-d220` and `banks/pinball-bench` with the d220 dataset; expected: four result files with complete headers.
 - [ ] **Step 4: Systematic-offset check on the real clip.** Using the scorer, compute the mean signed offset between projected marker corners and `gt_corners` over the first 50 tracked frames. If the mean offset exceeds 3 px and is consistent in direction, the printed poster's visible area is not the full image: record the margin estimate in `results/phase1/README.md` and apply it as a documented correction (never silently).
 - [ ] **Step 5:** Score everything: `.venv/Scripts/python -m nftbench.score --bank banks/synthetic-d220 --result results/phase1/native-synthetic-t1.json --result results/phase1/native-synthetic-tN.json --md results/phase1/synthetic.md` and the same for the real bank. Expected: markdown tables for detection scenarios, tracking speeds, and the real clip (valid%, ok%, median/p90 px, lost events, first lock frame, jitter, timing percentiles, `track_share`, `track_time_share`).
-- [ ] **Step 6: Commit** `feat(runner): add first native results at 220 dpi` (results JSON and markdown only; banks stay untracked).
+- [ ] **Step 6: Commit** `feat(runner): add first native results at 220 dpi` (markdown tables only; raw results stay in `results/local/` until Task 10 publishes them).
 
 ---
 
@@ -229,6 +232,13 @@ banks/ (git-ignored)   results/phase1/
 
 **Files:**
 - Modify: `README.md` (build, marker generation, bank/result formats, scorer usage, Phase 1 results table linked from `results/phase1/`), `AGENTS.md` (final command list), `CONTRIBUTING.md` if commands changed
+- Create: `scripts/publish_results.py`, `python/tests/test_publish.py`, `results/manifest.json`
+
+**Interfaces:**
+- Produces: `python scripts/publish_results.py <name> --from results/local/<dir> [--release]`: scrubs logs (absolute paths to `<repo>`-relative), scans every file for forbidden patterns (current user and host name, drive-letter or `/home/` absolute paths, emails, IPv4/MAC, `gh[pousr]_` tokens), aborts naming file and line on any hit; otherwise tars, hashes (SHA-256), commits the archive to a local clone of `webarkit/artoolkit-nft-bench-results`, optionally uploads it to an immutable release `results/<name>`, and appends the entry to `results/manifest.json` (name, sha256, size, code commit, results-repo commit, release tag or null).
+
+- [ ] **Step A: Failing tests** in `test_publish.py`: `test_scan_flags_absolute_windows_path`, `test_scan_flags_username_and_hostname`, `test_scan_flags_email_and_token`, `test_scrub_rewrites_repo_paths_relative`, `test_manifest_entry_fields`. Run pytest, expect FAIL; implement; run, expect PASS. Commit `feat(scorer): add results publisher with sensitive-data scan`.
+- [ ] **Step B: Confirm with the user, then create the results repository** `webarkit/artoolkit-nft-bench-results` (private, same visibility as this repo) with a ruleset forbidding force push and deletion of its default branch. Publish `phase-1`. Commit `results/manifest.json`: `docs(scorer): publish phase 1 results`.
 
 - [ ] **Step 1:** Update the docs so every command in them was run in this phase; delete the obsolete `nft_eval` references. Verify with `grep -rn "nft_eval" README.md AGENTS.md CONTRIBUTING.md` — expected no output.
 - [ ] **Step 2:** Run the full gate: build (`cmake --build build/win-vs2022 --config Release`), `ctest --test-dir build/win-vs2022 -C Release`, `.venv/Scripts/python -m pytest python/tests -q` — all green.
