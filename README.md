@@ -1,15 +1,22 @@
-# artoolkit5-refactor — CMake build + NFT quality harness
+# artoolkit-nft-bench
 
-Out-of-tree CMake build of the NFT-relevant part of ARToolKit5 (webarkit fork), plus a headless
-harness that measures **KPM detection** and **AR2 tracking** quality against synthetic ground truth.
+Benchmark of ARToolKit-family NFT engines on identical inputs: is the native ARToolKit5 C/C++ code faster, more responsive and
+more precise than jsartoolkitNFT (WebARKitLib in WASM)? Engines are compared in the order native, same sources in WASM,
+jsartoolkitNFT in Node, jsartoolkitNFT in Chromium. A secondary goal compares NFT markers from different generators.
+
+* Design: [spec](docs/superpowers/specs/2026-10-03-artoolkit-nft-bench-design.md), [plans](docs/superpowers/plans/), [ADRs](docs/adr/).
+* Contributing: [CONTRIBUTING.md](CONTRIBUTING.md); agents: [AGENTS.md](AGENTS.md).
+* License: LGPL-3.0-or-later ([LICENSE](LICENSE), [COPYING](COPYING)).
+
+## Layout
 
 * `extern/artoolkit5` — git submodule ([webarkit/artoolkit5](https://github.com/webarkit/artoolkit5), pinned). **Never modified.**
 * `CMakeLists.txt`, `cmake/` — builds `ARUtil`, `AR`, `ARICP`, `AR2`, `KPM` (static) and the upstream `genTexData` tool.
-  Source lists are taken from the upstream `VisualStudio/vs2017/*.vcxproj` files. `config.h` is generated in the build tree.
+  Source lists come from the upstream `VisualStudio/vs2017/*.vcxproj` files; `config.h` is generated in the build tree.
   GL / GLUT / video / OSG / examples are not built.
-* `tests/nft_eval.cpp` — the quality harness.
+* `tests/nft_eval.cpp` — exploratory quality harness (to be replaced by the native runner, exporter and scorer).
 * `data/markers/` — `pinball.jpg` (from upstream `doc/Marker images`) and the NFT dataset generated from it.
-* `tools/docker_build.sh` — Linux/gcc cross-check, run inside an `ubuntu:24.04` container.
+* `tools/docker_build.sh` — Linux/gcc cross-check inside an `ubuntu:24.04` container.
 
 ## Build (Windows, MSVC 2022)
 

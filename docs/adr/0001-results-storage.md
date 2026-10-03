@@ -1,6 +1,6 @@
 # ADR-0001: Benchmark results are stored in a separate repository
 
-Status: Proposed · Date: 2026-10-04
+Status: Accepted · Date: 2026-10-04
 
 ## Context
 
