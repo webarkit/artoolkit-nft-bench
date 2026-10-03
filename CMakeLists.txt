@@ -113,6 +113,9 @@ if(MSVC)
 endif()
 set_target_properties(genTexData PROPERTIES FOLDER "tools")
 
+enable_testing()
+add_subdirectory(native)
+
 if(ARX_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt")
     enable_testing()
     add_subdirectory(tests)

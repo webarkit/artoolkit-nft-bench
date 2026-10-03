@@ -111,3 +111,20 @@ else()
     find_package(ZLIB REQUIRED)
     find_package(JPEG REQUIRED)
 endif()
+
+# nlohmann/json (MIT) and stb_image / stb_image_write (public domain / MIT), used by the native bench tools.
+include(FetchContent)
+FetchContent_Declare(nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+FetchContent_MakeAvailable(nlohmann_json)
+
+FetchContent_Declare(stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG        2c980bb59875b0d32144a71867fbdebb2f77cd20)
+FetchContent_GetProperties(stb)
+if(NOT stb_POPULATED)
+    FetchContent_Populate(stb)
+endif()
+add_library(stb_headers INTERFACE)
+target_include_directories(stb_headers SYSTEM INTERFACE "${stb_SOURCE_DIR}")
