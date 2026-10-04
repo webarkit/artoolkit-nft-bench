@@ -14,7 +14,7 @@ jsartoolkitNFT in Node, jsartoolkitNFT in Chromium. A secondary goal compares NF
 * `CMakeLists.txt`, `cmake/` — builds `ARUtil`, `AR`, `ARICP`, `AR2`, `KPM` (static) and the upstream `genTexData` tool.
   Source lists come from the upstream `VisualStudio/vs2017/*.vcxproj` files; `config.h` is generated in the build tree.
   GL / GLUT / video / OSG / examples are not built.
-* `tests/nft_eval.cpp` — exploratory quality harness (to be replaced by the native runner, exporter and scorer).
+* `native/` — synthetic bank exporter (`nft_export`), native runner (`nft_run`), unit tests. `python/nftbench/` — schemas and scorer.
 * `data/markers/` — `pinball.jpg` (from upstream `doc/Marker images`) and the NFT dataset generated from it.
 * `tools/docker_build.sh` — Linux/gcc cross-check inside an `ubuntu:24.04` container.
 
@@ -31,22 +31,23 @@ native Win32 threading path is used and pthreads-win32 is not needed.
 
 ## Generate an NFT dataset
 
-`genTexData` is interactive unless every option is given:
-
 ```bash
-cd data/markers
-../../build/win-vs2022/Release/genTexData.exe pinball.jpg -dpi=150 -min_dpi=30 -max_dpi=150 -level=2 -leveli=3 < /dev/null
+scripts/make_marker.sh data/markers/pinball.jpg 220 30 220 2 1 data/markers/pinball-d220-l2-i1
 ```
 
-## Run the quality harness
+Arguments: image, dpi, min dpi, max dpi, level, leveli, output directory (named after the parameters).
+
+## Run a benchmark
 
 ```bash
-build/win-vs2022/tests/Release/nft_eval.exe dataset=data/markers/pinball image=data/markers/pinball.jpg dpi=150 \
-    mode=all trials=10 csv=results/win-msvc/pinball_full.csv
+B=build/win-vs2022/native/Release
+$B/nft_export.exe out=banks/synthetic-d220 image=data/markers/pinball.jpg dpi=220 dataset=pinball-d220-l2-i1
+$B/nft_run.exe bank=banks/synthetic-d220 dataset=data/markers/pinball-d220-l2-i1/pinball dpi=220     out=results/local/native.json threads=1 repeats=5
+.venv/Scripts/python -m nftbench.score --bank banks/synthetic-d220 --result results/local/native.json
 ```
 
-`dpi` must be the value passed to `genTexData -dpi=` (it fixes the marker's physical size in mm, which is what poses are expressed in).
-Options: `mode=detect|track|all`, `trials`, `seqlen`, `width`, `height`, `fovy`, `seed`, `scenarios=scale,tilt,...`, `kpm_proc`, `threads`, `ok_px`.
+`dpi` must be the value passed to `genTexData -dpi=` (it fixes the marker's physical size, in which poses are expressed);
+`nft_run` refuses a bank rendered for another dpi, and the scorer refuses a result whose marker or camera differ from the bank.
 
 ### What it measures
 

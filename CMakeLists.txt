@@ -46,7 +46,6 @@ if(NOT EXISTS "${ARTK5_ROOT}/include/AR/ar.h")
 endif()
 
 option(ARX_FETCH_DEPS "Download and build zlib + libjpeg-turbo instead of using system packages" ON)
-option(ARX_BUILD_TESTS "Build the NFT quality-test harness" ON)
 
 include(cmake/ThirdParty.cmake)
 include(cmake/ARToolKitSources.cmake)
@@ -116,7 +115,3 @@ set_target_properties(genTexData PROPERTIES FOLDER "tools")
 enable_testing()
 add_subdirectory(native)
 
-if(ARX_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt")
-    enable_testing()
-    add_subdirectory(tests)
-endif()

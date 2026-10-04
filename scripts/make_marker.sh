@@ -1,5 +1,6 @@
+#!/bin/bash
 #
-#  CMakeLists.txt
+#  make_marker.sh
 #  artoolkit-nft-bench
 #
 #  This file is part of artoolkit-nft-bench.
@@ -24,11 +25,17 @@
 #  Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
 #
 
-# Headless NFT quality harness (synthetic frames with ground-truth pose).
-add_executable(nft_eval nft_eval.cpp)
-target_link_libraries(nft_eval PRIVATE KPM AR2 ARICP AR ARUtil JPEG::JPEG)
-if(MSVC)
-    target_compile_definitions(nft_eval PRIVATE _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES NOMINMAX)
-    target_compile_options(nft_eval PRIVATE /W3 /wd4244 /wd4267 /wd4305 /wd4996)
-endif()
-set_target_properties(nft_eval PROPERTIES FOLDER "tests")
+# Generate an NFT dataset reproducibly with the upstream genTexData tool.
+#   scripts/make_marker.sh <jpg> <dpi> <min_dpi> <max_dpi> <level> <leveli> <outdir>
+set -euo pipefail
+[ $# -eq 7 ] || { echo "usage: $0 <jpg> <dpi> <min_dpi> <max_dpi> <level> <leveli> <outdir>" >&2; exit 2; }
+jpg=$1 dpi=$2 mindpi=$3 maxdpi=$4 level=$5 leveli=$6 out=$7
+root=$(cd "$(dirname "$0")/.." && pwd)
+gen="$root/build/win-vs2022/Release/genTexData.exe"
+[ -x "$gen" ] || gen="$root/build/genTexData"
+mkdir -p "$out"
+cp "$jpg" "$out/"
+cd "$out"
+"$gen" "$(basename "$jpg")" -dpi="$dpi" -min_dpi="$mindpi" -max_dpi="$maxdpi" -level="$level" -leveli="$leveli" < /dev/null \
+    > genTexData.log 2>&1
+ls "${jpg##*/}" >/dev/null && echo "dataset written to $out (log: genTexData.log, not committed)"
