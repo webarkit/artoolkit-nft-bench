@@ -44,7 +44,9 @@ import sys
 import tarfile
 from pathlib import Path
 
-from nftbench.publish import manifest_entry, release_commands, scan_text, scrub_text
+import hashlib
+
+from nftbench.publish import add_publication_row, manifest_entry, release_commands, scan_text, scrub_text
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT_SUFFIXES = {".json", ".md", ".txt", ".log", ".csv"}
@@ -61,6 +63,8 @@ def main() -> int:
     ap.add_argument("--results-repo", type=Path)
     ap.add_argument("--release", action="store_true", help="also create an immutable release in the results repository")
     ap.add_argument("--results-slug", default="webarkit/artoolkit-nft-bench-results")
+    ap.add_argument("--milestone", help="milestone this publication belongs to, e.g. 'M1 — Native baseline'")
+    ap.add_argument("--code-release", help="code release that produced the results, e.g. v0.1.0")
     ap.add_argument("--dry-run", action="store_true", help="scrub and scan only")
     a = ap.parse_args()
 
@@ -88,6 +92,9 @@ def main() -> int:
         print("refusing to publish, forbidden data found:", file=sys.stderr)
         print("\n".join(problems), file=sys.stderr)
         return 1
+    if not a.dry_run and not a.milestone:
+        print("--milestone is required to publish", file=sys.stderr)
+        return 2
     if a.dry_run:
         print(f"{len(payload)} files clean")
         return 0
@@ -110,7 +117,11 @@ def main() -> int:
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(archive)
     code_commit = git("rev-parse", "--short", "HEAD", cwd=ROOT)
-    git("add", str(dest.relative_to(a.results_repo)), cwd=a.results_repo)
+    readme = a.results_repo / "README.md"
+    sha = hashlib.sha256(archive).hexdigest()
+    readme.write_text(add_publication_row(readme.read_text(encoding="utf-8"), a.name, a.milestone or "-", a.code_release,
+                                          sha, a.name if a.release else None), encoding="utf-8")
+    git("add", str(dest.relative_to(a.results_repo)), "README.md", cwd=a.results_repo)
     git("commit", "-m", f"results: publish {a.name} (code {code_commit})", cwd=a.results_repo)
     git("push", cwd=a.results_repo)
     results_commit = git("rev-parse", "--short", "HEAD", cwd=a.results_repo)

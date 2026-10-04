@@ -89,3 +89,19 @@ def release_commands(results_repo: str, name: str, archive_relpath: str, results
          "--title", f"{name} raw results", "--notes", "SHA-256 of the archive: see results/manifest.json in "
          "webarkit/artoolkit-nft-bench."],
     ]
+
+
+START, END = "<!-- publications:start -->", "<!-- publications:end -->"
+
+
+def add_publication_row(readme: str, name: str, milestone: str, code_release: str | None, sha256: str,
+                        data_release: str | None) -> str:
+    """Append one row to the publications table of the results repository README (between the two markers)."""
+    if START not in readme or END not in readme:
+        raise ValueError("README has no publications table markers")
+    head, rest = readme.split(START, 1)
+    table, tail = rest.split(END, 1)
+    if any(line.startswith(f"| {name} |") for line in table.splitlines()):
+        raise ValueError(f"publication {name} already listed")
+    row = f"| {name} | {milestone} | {code_release or '-'} | `{sha256}` | {data_release or '-'} |\n"
+    return head + START + table.rstrip("\n") + "\n" + row + END + tail
