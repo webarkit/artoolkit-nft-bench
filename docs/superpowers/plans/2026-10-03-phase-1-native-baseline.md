@@ -180,7 +180,7 @@ banks/ (git-ignored)   results/phase1/
 ### Task 7: Real-video frame bank
 
 **Files:**
-- Create: `data/videos/pinball-bench.mp4` (copied from `D:\kalwalt-github\webarkit\examples\videos\pinball-bench.mp4`), `data/videos/README.md` (source repo, source commit from `git -C D:/kalwalt-github/webarkit rev-parse HEAD`, 1280x720 H.264, 298 frames, license LGPL-3.0-or-later as the source repo), `python/nftbench/video_bank.py`, `scripts/make_video_bank.py`
+- Create: `data/videos/pinball-bench.mp4` (copied from a local clone of `webarkit/webarkit`, `examples/videos/pinball-bench.mp4`), `data/videos/README.md` (source repo, source commit from `git rev-parse HEAD` in that clone, 1280x720 H.264, 298 frames, license LGPL-3.0-or-later as the source repo), `python/nftbench/video_bank.py`, `scripts/make_video_bank.py`
 - Test: `python/tests/test_video_bank.py`
 
 **Interfaces:**
