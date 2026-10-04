@@ -74,3 +74,18 @@ def scrub_text(text: str, repo_root: Path) -> str:
 def manifest_entry(name: str, archive: bytes, code_commit: str, results_commit: str, release_tag: str | None) -> dict:
     return {"name": name, "sha256": hashlib.sha256(archive).hexdigest(), "size": len(archive),
             "code_commit": code_commit, "results_commit": results_commit, "release_tag": release_tag}
+
+
+def release_commands(results_repo: str, name: str, archive_relpath: str, results_commit: str) -> list[list[str]]:
+    """Commands (run inside the local clone of the results repository) that create the optional immutable release.
+
+    The release lives in the results repository, next to the data (see ADR-0001, "To revisit"): an annotated tag `<name>`
+    on the commit that stores the archive, then a GitHub Release on that tag with the archive attached.
+    """
+    return [
+        ["git", "tag", "-a", name, results_commit, "-m", f"{name} raw results"],
+        ["git", "push", "origin", name],
+        ["gh", "release", "create", name, archive_relpath, "--repo", results_repo, "--verify-tag",
+         "--title", f"{name} raw results", "--notes", "SHA-256 of the archive: see results/manifest.json in "
+         "webarkit/artoolkit-nft-bench."],
+    ]

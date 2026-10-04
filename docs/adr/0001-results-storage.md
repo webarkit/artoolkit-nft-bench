@@ -65,3 +65,7 @@ Options considered:
   repositories (HTTP 403, "Upgrade to GitHub Pro or make this repository public"). Until the repositories are public or the plan
   changes, the "no force push / no deletion" guarantee is not enforced by GitHub; it holds by convention, and every archive stays
   verifiable through its SHA-256 in `results/manifest.json`. Enable the ruleset as soon as it becomes available.
+* 2026-10-04: the optional immutable release of raw results was created in the results repository
+  (`artoolkit-nft-bench-results`, tag `phase-1`) rather than in this repository, so that the data and its release live together.
+  Future publications follow that practice (`scripts/publish_results.py --release`); a superseding ADR should record it if the
+  decision is ever revised.

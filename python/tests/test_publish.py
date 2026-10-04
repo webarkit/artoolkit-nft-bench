@@ -95,3 +95,14 @@ def test_publish_refuses_unknown_binary_files(tmp_path):
     p = subprocess.run([sys.executable, str(root / "scripts/publish_results.py"), "x", "--from", str(src), "--dry-run"],
                        capture_output=True, text=True)
     assert p.returncode == 1 and "blob.bin" in p.stderr
+
+
+def test_release_commands_target_the_results_repository():
+    from nftbench.publish import release_commands
+    cmds = release_commands("webarkit/artoolkit-nft-bench-results", "phase-2", "phase-2/phase-2.tar.gz", "abc1234")
+    tag, push, create = cmds
+    assert tag[:3] == ["git", "tag", "-a"] and "phase-2" in tag and "abc1234" in tag
+    assert push == ["git", "push", "origin", "phase-2"]
+    assert create[:3] == ["gh", "release", "create"] and "--verify-tag" in create
+    assert create[create.index("--repo") + 1] == "webarkit/artoolkit-nft-bench-results"
+    assert "phase-2/phase-2.tar.gz" in create
