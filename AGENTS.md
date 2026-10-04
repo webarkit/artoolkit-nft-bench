@@ -56,6 +56,9 @@ Do not claim a change is verified without running these.
   `Copyright 2026 WebARKit.`, author). Run `.venv/Scripts/python scripts/license_headers.py --fix` after adding files; the check
   also runs inside `pytest`. Claude Code has the same procedure as the `license-header` skill in `.claude/skills/`.
 * An accepted ADR's decision is never edited in place; supersede it with a new ADR.
+* Every PR and issue is assigned to the milestone of its phase (`M<n> — <phase name>`). Releases follow
+  [ADR-0002](docs/adr/0002-milestones-and-releases.md): the release is the last step of a milestone, and behaviour or result
+  changes add a line under `[Unreleased]` in `CHANGELOG.md`.
 
 ## Git and contribution workflow
 
