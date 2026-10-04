@@ -1,66 +1,78 @@
-# artoolkit5-refactor — CMake build + NFT quality harness
+# artoolkit-nft-bench
 
-Out-of-tree CMake build of the NFT-relevant part of ARToolKit5 (webarkit fork), plus a headless
-harness that measures **KPM detection** and **AR2 tracking** quality against synthetic ground truth.
+Benchmark of ARToolKit-family NFT engines on identical inputs: is the native ARToolKit5 C/C++ code faster, more responsive and
+more precise than jsartoolkitNFT (WebARKitLib in WASM)? Engines are compared in the order native, same sources in WASM,
+jsartoolkitNFT in Node, jsartoolkitNFT in Chromium. A secondary goal compares NFT markers from different generators.
+
+* Design: [spec](docs/superpowers/specs/2026-10-03-artoolkit-nft-bench-design.md), [plans](docs/superpowers/plans/), [ADRs](docs/adr/).
+* Results: [phase 1 — native baseline](results/phase1/README.md).
+* Contributing: [CONTRIBUTING.md](CONTRIBUTING.md); agents: [AGENTS.md](AGENTS.md).
+* License: LGPL-3.0-or-later ([LICENSE](LICENSE), [COPYING](COPYING)).
+
+## How it works
+
+Engines never see ground truth. A **frame bank** (8-bit grey PNG frames + `bank.json`) is produced once, either synthetically
+with the exact pose of every frame (`nft_export`) or from a real video, with the poster corners segmented as ground truth
+(`python/nftbench`). Each engine has a **runner** that reads a bank and writes a `result.json`. The **scorer** reads only a bank
+and result files and prints the tables, refusing results produced with a different marker or camera than the bank.
+
+## Layout
 
 * `extern/artoolkit5` — git submodule ([webarkit/artoolkit5](https://github.com/webarkit/artoolkit5), pinned). **Never modified.**
-* `CMakeLists.txt`, `cmake/` — builds `ARUtil`, `AR`, `ARICP`, `AR2`, `KPM` (static) and the upstream `genTexData` tool.
-  Source lists are taken from the upstream `VisualStudio/vs2017/*.vcxproj` files. `config.h` is generated in the build tree.
-  GL / GLUT / video / OSG / examples are not built.
-* `tests/nft_eval.cpp` — the quality harness.
-* `data/markers/` — `pinball.jpg` (from upstream `doc/Marker images`) and the NFT dataset generated from it.
-* `tools/docker_build.sh` — Linux/gcc cross-check, run inside an `ubuntu:24.04` container.
+* `CMakeLists.txt`, `cmake/` — builds `ARUtil`, `AR`, `ARICP`, `AR2`, `KPM` (static) and the upstream `genTexData` tool. Source lists
+  come from the upstream `VisualStudio/vs2017/*.vcxproj` files; `config.h` is generated in the build tree. GL / GLUT / video / OSG
+  and the examples are not built.
+* `native/` — synthetic bank exporter `nft_export`, native runner `nft_run`, unit tests.
+* `python/nftbench/` — bank/result schemas, scorer, real-video bank builder, corner segmentation, results publisher.
+* `data/markers/<name>-d<dpi>-l<level>-i<leveli>/` — NFT datasets; `data/videos/` — the test clip and its provenance.
+* `scripts/` — `make_marker.sh`, `make_video_bank.py`, `segment_bank.py`, `run_phase1.sh`, `publish_results.py`, `license_headers.py`.
+* `banks/`, `results/local/` — generated, git-ignored.
 
-## Build (Windows, MSVC 2022)
+## Setup (Windows)
 
 ```bash
 git submodule update --init
-cmake -S . -B build/win-vs2022 -G "Visual Studio 17 2022" -A x64      # fetches zlib + libjpeg-turbo
+cmake -S . -B build/win-vs2022 -G "Visual Studio 17 2022" -A x64      # fetches zlib, libjpeg-turbo, nlohmann/json, stb
 cmake --build build/win-vs2022 --config Release
+python -m venv .venv
+.venv/Scripts/python -m pip install --use-feature=truststore -r requirements-dev.txt
+.venv/Scripts/python -m pip install --use-feature=truststore --no-build-isolation -e .
 ```
 
-`ARX_FETCH_DEPS=OFF` uses system zlib/libjpeg instead (Linux). On Windows, `ARUTIL_DISABLE_PTHREADS` is defined so the
-native Win32 threading path is used and pthreads-win32 is not needed.
+`--use-feature=truststore` makes pip use the Windows certificate store; drop it where Python's own CA bundle works. On Windows,
+`ARUTIL_DISABLE_PTHREADS` is defined so the native Win32 threading path is used. Linux/gcc: `tools/docker_build.sh` in an
+`ubuntu:24.04` container (`ARX_FETCH_DEPS=OFF` uses the system zlib/libjpeg).
 
-## Generate an NFT dataset
-
-`genTexData` is interactive unless every option is given:
+## Tests
 
 ```bash
-cd data/markers
-../../build/win-vs2022/Release/genTexData.exe pinball.jpg -dpi=150 -min_dpi=30 -max_dpi=150 -level=2 -leveli=3 < /dev/null
+ctest --test-dir build/win-vs2022 -C Release
+.venv/Scripts/python -m pytest -q
 ```
 
-## Run the quality harness
+`pytest` drives the built `nft_export`/`nft_run` binaries and also checks the LGPL header of every source file.
+
+## Reproduce phase 1
 
 ```bash
-build/win-vs2022/tests/Release/nft_eval.exe dataset=data/markers/pinball image=data/markers/pinball.jpg dpi=150 \
-    mode=all trials=10 csv=results/win-msvc/pinball_full.csv
+scripts/run_phase1.sh
 ```
 
-`dpi` must be the value passed to `genTexData -dpi=` (it fixes the marker's physical size in mm, which is what poses are expressed in).
-Options: `mode=detect|track|all`, `trials`, `seqlen`, `width`, `height`, `fovy`, `seed`, `scenarios=scale,tilt,...`, `kpm_proc`, `threads`, `ok_px`.
+It generates the marker if missing (`scripts/make_marker.sh data/markers/pinball.jpg 220 30 220 2 1 data/markers/pinball-d220-l2-i1`),
+exports the synthetic bank, builds and segments the real-clip bank, and runs `nft_run` at 1 thread and at default threads
+(`REPEATS=5` passes, the first discarded). Score with:
 
-### What it measures
+```bash
+.venv/Scripts/python -m nftbench.score --bank banks/synthetic-d220 --result results/local/phase1/native-synthetic-d220-t1.json
+.venv/Scripts/python -m nftbench.score --bank banks/pinball-bench --result results/local/phase1/native-pinball-bench-t1.json
+```
 
-Frames are rendered from the marker image with a known pose (pinhole camera, 640x480, fovy 45°, mip-mapped + 2x2 supersampled,
-random smooth background). `found` = KPM returned a pose; `ok` = found **and** mean 2D corner reprojection error < `ok_px` (5 px).
-Detection sweeps one nuisance at a time (distance, tilt, in-plane roll, blur, noise, illumination, occlusion) with the others
-jittered around a nominal pose. Tracking runs KPM init + `ar2Tracking` on sequences with increasing motion speed (with motion blur).
+`dpi` must be the value passed to `genTexData -dpi=` (it fixes the marker's physical size, in which poses are expressed).
+`nft_run` writes only allow-listed host fields; set your machine label in a git-ignored `bench.local.json`
+(`{"host_label": "desktop-1"}`).
 
-### Limits of this evaluation
+## Publishing results
 
-Synthetic frames are rendered from the very image the dataset was built from, with no lens distortion, rolling shutter, colour
-or JPEG artefacts. Treat the numbers as an **upper bound** and as a regression/comparison baseline between builds, not as an
-absolute field-performance figure. Real footage (no ground truth) is the next step.
-
-## Results so far (pinball.jpg, 640x480, 10 trials/level; synthetic ground truth)
-
-Full tables: `results/win-msvc/pinball_full.txt` (Windows, MSVC 2022) and `results/linux-gcc/pinball_full.txt` (Ubuntu 24.04, gcc 13).
-
-* Detection is reliable up to ~4x the "marker fills 80% of frame height" distance, tilt ≤ 55°, any in-plane roll, noise σ ≤ 30,
-  illumination down to 25% contrast, blur σ ≤ 3 px, and ≤ 40% occlusion. Median corner error is 0.2–0.5 px when it works.
-* Tracking (KPM init + AR2) holds 100% of frames up to 20 px/frame; at 35 px/frame (with motion blur) it fails.
-* Windows and Linux agree to within the 10-trial noise. `genTexData` output is **byte-identical** across platforms for
-  `.iset` and `.fset`; `.fset3` (FREAK) differs bit-wise (floating-point differences) but is interchangeable for matching.
-* One KPM detection takes ~30–70 ms at 640x480 (single thread); one `ar2Tracking` call ~1.2 ms.
+Raw results are published only when a written conclusion rests on them, to `webarkit/artoolkit-nft-bench-results`, with
+`scripts/publish_results.py` (scrubs paths, refuses to publish host names, user names, emails, absolute paths, tokens, IP/MAC
+addresses), indexed by `results/manifest.json`. See [ADR-0001](docs/adr/0001-results-storage.md).

@@ -3,3 +3,12 @@ out/
 results/**/*.csv
 results/**/*.log
 *.user
+.superpowers/
+banks/
+results/local/
+bench.local.json
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+data/markers/*/genTexData.log

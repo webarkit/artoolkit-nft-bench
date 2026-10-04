@@ -1,3 +1,29 @@
+#
+#  ThirdParty.cmake
+#  artoolkit-nft-bench
+#
+#  This file is part of artoolkit-nft-bench.
+#
+#  SPDX-License-Identifier: LGPL-3.0-or-later
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#  Copyright 2026 WebARKit.
+#
+#  Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
+#
+
 # zlib + libjpeg-turbo providing the imported targets ZLIB::ZLIB and JPEG::JPEG.
 if(ARX_FETCH_DEPS)
     include(FetchContent)
@@ -85,3 +111,20 @@ else()
     find_package(ZLIB REQUIRED)
     find_package(JPEG REQUIRED)
 endif()
+
+# nlohmann/json (MIT) and stb_image / stb_image_write (public domain / MIT), used by the native bench tools.
+include(FetchContent)
+FetchContent_Declare(nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+FetchContent_MakeAvailable(nlohmann_json)
+
+FetchContent_Declare(stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG        2c980bb59875b0d32144a71867fbdebb2f77cd20)
+FetchContent_GetProperties(stb)
+if(NOT stb_POPULATED)
+    FetchContent_Populate(stb)
+endif()
+add_library(stb_headers INTERFACE)
+target_include_directories(stb_headers SYSTEM INTERFACE "${stb_SOURCE_DIR}")

@@ -1,6 +1,6 @@
 # ADR-0001: Benchmark results are stored in a separate repository
 
-Status: Proposed · Date: 2026-10-04
+Status: Accepted · Date: 2026-10-04
 
 ## Context
 
@@ -61,3 +61,7 @@ Options considered:
 * If the results repository grows past a few GB, split archives per phase into separate repositories or move to dedicated storage.
 * Before both repositories are made public, check that no raw result exposes host details that should stay private (machine
   names, user paths in logs). This is a checklist item, not a change to the decision.
+* 2026-10-04: on the organisation's current plan, GitHub refuses both rulesets and classic branch protection on private
+  repositories (HTTP 403, "Upgrade to GitHub Pro or make this repository public"). Until the repositories are public or the plan
+  changes, the "no force push / no deletion" guarantee is not enforced by GitHub; it holds by convention, and every archive stays
+  verifiable through its SHA-256 in `results/manifest.json`. Enable the ruleset as soon as it becomes available.

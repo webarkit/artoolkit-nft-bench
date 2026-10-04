@@ -17,7 +17,7 @@
 - Every repository artifact is in English.
 - Every committed result carries its configuration header: engine and version, build flags, threads, dpi, camera, host.
 - Never commit build trees, decoded frame banks (`banks/`), raw CSV/logs, `.venv`, `node_modules`. Committed media: small reproducible clips with provenance only.
-- New source files carry the LGPL-3.0-or-later header used by the rest of the repo.
+- Every source file (C/C++, Python, shell, CMake, JS/TS) starts with the webarkit/webarkit LGPL header: file name, `artoolkit-nft-bench`, `This file is part of artoolkit-nft-bench.`, `SPDX-License-Identifier: LGPL-3.0-or-later`, the LGPL notice, `Copyright 2026 WebARKit.`, `Author(s): Walter Perdan @kalwalt https://github.com/kalwalt`. `scripts/license_headers.py` checks it (`--fix` adds it) and `python/tests/test_license_headers.py` runs the check in `pytest`.
 - Results storage follows `docs/adr/0001-results-storage.md`: development results go to `results/local/` (git-ignored); only publications go to `webarkit/artoolkit-nft-bench-results` (same visibility as this repo), indexed by `results/manifest.json`.
 - Sensitive data: result headers contain only allow-listed host fields (`host_label` from the git-ignored `bench.local.json`, `os`, `cpu`, `cores`, `threads_hw`, `ram_gb`, `compiler`, `build_flags`, `runtime`). Never host names, user names, emails, absolute paths, environment variables, tokens, IP/MAC addresses or device serials.
 - Canonical marker: `pinball.jpg`, **220 dpi** (189.0 x 236.5 mm), `genTexData -dpi=220 -min_dpi=30 -max_dpi=220 -level=2 -leveli=1` (genTexData defaults for level/leveli, the same defaults NFT-Marker-Creator-App documents). Marker-dir names encode the parameters: `pinball-d220-l2-i1`.
@@ -180,7 +180,7 @@ banks/ (git-ignored)   results/phase1/
 ### Task 7: Real-video frame bank
 
 **Files:**
-- Create: `data/videos/pinball-bench.mp4` (copied from `D:\kalwalt-github\webarkit\examples\videos\pinball-bench.mp4`), `data/videos/README.md` (source repo, source commit from `git -C D:/kalwalt-github/webarkit rev-parse HEAD`, 1280x720 H.264, 298 frames, license LGPL-3.0-or-later as the source repo), `python/nftbench/video_bank.py`, `scripts/make_video_bank.py`
+- Create: `data/videos/pinball-bench.mp4` (copied from a local clone of `webarkit/webarkit`, `examples/videos/pinball-bench.mp4`), `data/videos/README.md` (source repo, source commit from `git rev-parse HEAD` in that clone, 1280x720 H.264, 298 frames, license LGPL-3.0-or-later as the source repo), `python/nftbench/video_bank.py`, `scripts/make_video_bank.py`
 - Test: `python/tests/test_video_bank.py`
 
 **Interfaces:**

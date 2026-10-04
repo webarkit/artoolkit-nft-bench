@@ -1,3 +1,29 @@
+#
+#  CMakeLists.txt
+#  artoolkit-nft-bench
+#
+#  This file is part of artoolkit-nft-bench.
+#
+#  SPDX-License-Identifier: LGPL-3.0-or-later
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#  Copyright 2026 WebARKit.
+#
+#  Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
+#
+
 cmake_minimum_required(VERSION 3.20)
 project(artoolkit5_nft LANGUAGES C CXX)
 
@@ -20,7 +46,6 @@ if(NOT EXISTS "${ARTK5_ROOT}/include/AR/ar.h")
 endif()
 
 option(ARX_FETCH_DEPS "Download and build zlib + libjpeg-turbo instead of using system packages" ON)
-option(ARX_BUILD_TESTS "Build the NFT quality-test harness" ON)
 
 include(cmake/ThirdParty.cmake)
 include(cmake/ARToolKitSources.cmake)
@@ -87,7 +112,6 @@ if(MSVC)
 endif()
 set_target_properties(genTexData PROPERTIES FOLDER "tools")
 
-if(ARX_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt")
-    enable_testing()
-    add_subdirectory(tests)
-endif()
+enable_testing()
+add_subdirectory(native)
+
