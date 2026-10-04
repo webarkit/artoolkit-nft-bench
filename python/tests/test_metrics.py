@@ -98,3 +98,28 @@ def test_first_lock_frame():
     st = ["lost", "lost", "detected", "tracked"]
     r = result([rf(0, i, s, None if s == "lost" else pose()) for i, s in enumerate(st)])
     assert summarize(bank(fr), r)["groups"]["g"]["first_lock_frame"] == 2
+
+
+def test_project_corners_with_margin_expands_the_quad():
+    inner = project_corners(pose(), CAM, W, H)
+    outer = project_corners(pose(), CAM, W, H, margin_mm=5.0)
+    # 5 mm at 500 mm with f=500 is 5 px outward on each side
+    assert np.allclose(outer - inner, [[-5, -5], [5, -5], [5, 5], [-5, 5]], atol=1e-6)
+
+
+def test_estimate_margin_recovers_paper_border():
+    from nftbench.metrics import estimate_margin_mm
+    frames = [Frame(0, i, f"f{i}.png", i / 30, "real", None,
+                    project_corners(pose(dx=i * 0.5), CAM, W, H, margin_mm=3.0)) for i in range(20)]
+    st = ["detected"] + ["tracked"] * 19
+    r = result([rf(0, i, s, pose(dx=i * 0.5)) for i, s in enumerate(st)])
+    m, residual = estimate_margin_mm(bank(frames), r)
+    assert m == pytest.approx(3.0, abs=0.05) and residual < 0.1
+
+
+def test_summarize_applies_gt_margin_to_corner_ground_truth():
+    f = Frame(0, 0, "f.png", 0.0, "real", None, project_corners(pose(), CAM, W, H, margin_mm=3.0))
+    r = result([rf(0, 0, "detected", pose())])
+    assert summarize(bank([f]), r)["groups"]["real"]["median_px"] is None or \
+        summarize(bank([f]), r)["groups"]["real"]["median_px"] > 2.9
+    assert summarize(bank([f]), r, gt_margin_mm=3.0)["groups"]["real"]["median_px"] == pytest.approx(0.0, abs=1e-6)

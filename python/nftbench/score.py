@@ -46,9 +46,11 @@ def _label(h: dict) -> str:
     return f"{h.get('engine', '?')} threads={h.get('params', {}).get('threads', '?')}"
 
 
-def render(bank, scored: list, ok_px: float) -> str:
+def render(bank, scored: list, ok_px: float, margin: float = 0.0) -> str:
     out = [f"# {bank.name} ({bank.kind}, {bank.width}x{bank.height}, marker {bank.marker_dataset} @ {bank.marker_dpi:g} dpi)",
            "", f"ok = valid pose with mean corner error < {ok_px:g} px.", ""]
+    if margin:
+        out[-1:] = [f"Segmented corners compared with the marker expanded by a {margin:g} mm print border.", ""]
     for h, s in scored:
         out += [f"## {_label(h)} — track share {100 * s['track_share']:.1f}%, "
                 f"trackTimeShare {100 * s['track_time_share']:.1f}%", "",
@@ -73,6 +75,8 @@ def main(argv=None) -> int:
     ap.add_argument("--result", required=True, action="append", type=Path)
     ap.add_argument("--ok-px", type=float, default=5.0)
     ap.add_argument("--md", type=Path)
+    ap.add_argument("--gt-margin-mm", type=float, default=0.0,
+                    help="print border around the marker image, applied to segmented corner ground truth")
     a = ap.parse_args(argv)
     bank = load_bank(a.bank)
     scored = []
@@ -83,8 +87,8 @@ def main(argv=None) -> int:
         except IncompatibleResult as e:
             print(f"error: {rp}: {e}", file=sys.stderr)
             return 2
-        scored.append((r.header, summarize(bank, r, a.ok_px)))
-    text = render(bank, scored, a.ok_px)
+        scored.append((r.header, summarize(bank, r, a.ok_px, a.gt_margin_mm)))
+    text = render(bank, scored, a.ok_px, a.gt_margin_mm)
     print(text)
     if a.md:
         a.md.parent.mkdir(parents=True, exist_ok=True)

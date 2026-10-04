@@ -32,18 +32,20 @@ import numpy as np
 from .schema import Camera
 
 
-def _marker_corners_mm(w_mm: float, h_mm: float) -> np.ndarray:
+def _marker_corners_mm(w_mm: float, h_mm: float, margin_mm: float = 0.0) -> np.ndarray:
     # Marker-image TL, TR, BR, BL; marker frame origin at the image's bottom-left, y up.
-    return np.array([[0, h_mm, 0], [w_mm, h_mm, 0], [w_mm, 0, 0], [0, 0, 0]], dtype=float)
+    # margin_mm expands the quad outward, e.g. to the edge of a print's white border.
+    m = margin_mm
+    return np.array([[-m, h_mm + m, 0], [w_mm + m, h_mm + m, 0], [w_mm + m, -m, 0], [-m, -m, 0]], dtype=float)
 
 
-def _camera_points(pose: np.ndarray, w_mm: float, h_mm: float) -> np.ndarray:
+def _camera_points(pose: np.ndarray, w_mm: float, h_mm: float, margin_mm: float = 0.0) -> np.ndarray:
     P = np.asarray(pose, dtype=float)
-    return _marker_corners_mm(w_mm, h_mm) @ P[:, :3].T + P[:, 3]
+    return _marker_corners_mm(w_mm, h_mm, margin_mm) @ P[:, :3].T + P[:, 3]
 
 
-def project_corners(pose: np.ndarray, cam: Camera, w_mm: float, h_mm: float) -> np.ndarray:
-    pc = _camera_points(pose, w_mm, h_mm)
+def project_corners(pose: np.ndarray, cam: Camera, w_mm: float, h_mm: float, margin_mm: float = 0.0) -> np.ndarray:
+    pc = _camera_points(pose, w_mm, h_mm, margin_mm)
     return np.stack([cam.fx * pc[:, 0] / pc[:, 2] + cam.cx, cam.fy * pc[:, 1] / pc[:, 2] + cam.cy], axis=1)
 
 
@@ -56,9 +58,9 @@ def pose_valid(pose, w_mm: float, h_mm: float) -> bool:
     return bool(np.all(_camera_points(P, w_mm, h_mm)[:, 2] > 0))
 
 
-def corner_error_px(pose, gt_corners, cam: Camera, w_mm: float, h_mm: float) -> float:
+def corner_error_px(pose, gt_corners, cam: Camera, w_mm: float, h_mm: float, margin_mm: float = 0.0) -> float:
     gt = np.asarray(gt_corners, dtype=float).reshape(4, 2)
-    return float(np.mean(np.linalg.norm(project_corners(pose, cam, w_mm, h_mm) - gt, axis=1)))
+    return float(np.mean(np.linalg.norm(project_corners(pose, cam, w_mm, h_mm, margin_mm) - gt, axis=1)))
 
 
 def pose_error(pose_est, pose_gt, w_mm: float, h_mm: float) -> tuple[float, float]:

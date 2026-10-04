@@ -89,7 +89,8 @@ def _gt_corners(f, cam, w, h):
     return None
 
 
-def summarize(bank: Bank, result: Result, ok_px: float = 5.0) -> dict:
+def summarize(bank: Bank, result: Result, ok_px: float = 5.0, gt_margin_mm: float = 0.0) -> dict:
+    """gt_margin_mm: width of a print border around the marker image, applied only to segmented corner ground truth."""
     gt = {(f.seq, f.i): f for f in bank.frames}
     W, H, cam = bank.marker_w_mm, bank.marker_h_mm, bank.camera
     by_group = defaultdict(lambda: defaultdict(list))
@@ -135,7 +136,8 @@ def summarize(bank: Bank, result: Result, ok_px: float = 5.0) -> dict:
                 if not ok_pose:
                     continue
                 valid += 1
-                e = corner_error_px(r.pose, gc, cam, W, H)
+                margin = gt_margin_mm if f.gt_corners is not None else 0.0
+                e = corner_error_px(r.pose, gc, cam, W, H, margin)
                 if e < ok_px:
                     ok += 1
                     px.append(e)
@@ -160,3 +162,31 @@ def summarize(bank: Bank, result: Result, ok_px: float = 5.0) -> dict:
     return {"groups": groups,
             "track_share": flat.count("tracked") / len(flat) if flat else 0.0,
             "track_time_share": track_time_share(all_states, all_times)}
+
+
+def estimate_margin_mm(bank: Bank, result: Result, max_frames: int = 50, search_mm: float = 10.0) -> tuple[float, float]:
+    """Print-border width that best explains segmented corners given the engine's poses.
+
+    Uses the first `max_frames` frames that have both a valid engine pose and segmented corners; returns
+    (margin in mm, mean corner residual in px at that margin). A 1-D search is enough: the margin enters linearly.
+    """
+    gt = {(f.seq, f.i): f for f in bank.frames}
+    W, H, cam = bank.marker_w_mm, bank.marker_h_mm, bank.camera
+    pairs = []
+    for r in result.frames:
+        f = gt[(r.seq, r.i)]
+        if f.gt_corners is not None and r.state in VALID_STATES and pose_valid(r.pose, W, H):
+            pairs.append((r.pose, f.gt_corners))
+            if len(pairs) >= max_frames:
+                break
+    if not pairs:
+        return 0.0, float("nan")
+
+    def cost(m):
+        return float(np.mean([corner_error_px(p, c, cam, W, H, m) for p, c in pairs]))
+
+    grid = np.arange(-search_mm, search_mm + 1e-9, 0.25)
+    best = float(grid[int(np.argmin([cost(m) for m in grid]))])
+    fine = np.arange(best - 0.25, best + 0.25 + 1e-9, 0.01)
+    best = float(fine[int(np.argmin([cost(m) for m in fine]))])
+    return best, cost(best)
