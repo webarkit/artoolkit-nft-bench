@@ -28,6 +28,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    # Decides whether the slower Windows job runs: always for PRs to main (releases) and manual runs; for PRs to dev only when
+    # the build itself changes.
+    runs-on: ubuntu-24.04
+    outputs:
+      windows: ${{ steps.decide.outputs.windows }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: decide
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.base_ref }}" = "main" ]; then
+            echo "windows=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "windows=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          changed=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")
+          echo "$changed"
+          if echo "$changed" | grep -qE '^(CMakeLists\.txt|CMakePresets\.json|cmake/|native/|\.github/workflows/)'; then
+            echo "windows=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "windows=false" >> "$GITHUB_OUTPUT"
+          fi
+
   linux:
     runs-on: ubuntu-24.04
     steps:
@@ -56,8 +83,9 @@ jobs:
         run: .venv/bin/python -m pytest -q
 
   windows:
-    # MSVC build is slower (libjpeg-turbo and zlib are built from source); checked before releases and on demand.
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.base_ref == 'main')
+    # MSVC build is slower (libjpeg-turbo and zlib are built from source): releases, manual runs, and PRs that change the build.
+    needs: changes
+    if: needs.changes.outputs.windows == 'true'
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4

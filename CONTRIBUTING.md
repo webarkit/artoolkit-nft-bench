@@ -52,7 +52,8 @@ ctest --preset windows-msvc
 `<venv-python>` is `.venv/Scripts/python` on Windows and `.venv/bin/python` on Linux. Presets: `windows-msvc` (Visual Studio 2022)
 and `linux-gcc` (Ninja, system zlib/libjpeg: `apt install build-essential cmake ninja-build libjpeg-dev zlib1g-dev python3-venv`).
 `--use-feature=truststore` is only needed where Python's CA bundle fails (it does on the maintainer's Windows machine).
-CI (`.github/workflows/ci.yml`) runs the Linux sequence on every push and PR to `dev`/`main`, and Windows on PRs to `main`.
+CI (`.github/workflows/ci.yml`) runs the Linux sequence on every push and PR to `dev`/`main`, and Windows on PRs to `main`, manual runs, and PRs to `dev` that change the build (`CMakeLists.txt`, `cmake/`,
+`CMakePresets.json`, `native/`, `.github/workflows/`).
 
 Do not claim a change is verified without running them. CI must be green before a PR is merged. `AGENTS.md` keeps the authoritative command list.
 
