@@ -32,6 +32,9 @@ Every repository artifact (code, comments, commits, PR titles and bodies, issues
 ## Before opening a pull request
 
 ```bash
+python -m venv .venv
+.venv/Scripts/python -m pip install --use-feature=truststore -r requirements-dev.txt
+.venv/Scripts/python -m pip install --use-feature=truststore --no-build-isolation -e .
 cmake -S . -B build/win-vs2022 -G "Visual Studio 17 2022" -A x64
 cmake --build build/win-vs2022 --config Release
 ctest --test-dir build/win-vs2022 -C Release

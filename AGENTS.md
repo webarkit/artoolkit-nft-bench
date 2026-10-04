@@ -27,9 +27,15 @@ Read the [spec](docs/superpowers/specs/2026-10-03-artoolkit-nft-bench-design.md)
 git submodule update --init
 cmake -S . -B build/win-vs2022 -G "Visual Studio 17 2022" -A x64
 cmake --build build/win-vs2022 --config Release
+python -m venv .venv
+.venv/Scripts/python -m pip install --use-feature=truststore -r requirements-dev.txt
+.venv/Scripts/python -m pip install --use-feature=truststore --no-build-isolation -e .
+ctest --test-dir build/win-vs2022 -C Release
+.venv/Scripts/python -m pytest -q          # needs the native build: it drives nft_export / nft_run
+scripts/run_phase1.sh                       # phase 1 measurements -> results/local/phase1/ (long)
 ```
 
-Later tasks add `ctest` and `pytest`; this list is the authoritative one, kept in sync with `CONTRIBUTING.md`.
+This list is the authoritative one, kept in sync with `CONTRIBUTING.md`.
 Do not claim a change is verified without running these.
 
 ## Hard rules
