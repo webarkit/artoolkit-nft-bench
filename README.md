@@ -1,5 +1,6 @@
 # artoolkit-nft-bench
 
+[![CI](https://github.com/webarkit/artoolkit-nft-bench/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/webarkit/artoolkit-nft-bench/actions/workflows/ci.yml)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/webarkit/artoolkit-nft-bench)](https://github.com/webarkit/artoolkit-nft-bench/releases)
 [![C++](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](native)
@@ -53,7 +54,7 @@ flowchart LR
 
 ## Reproduce in three commands
 
-After the [setup](#setup-windows):
+After the setup ([Windows](#setup-windows) or [Ubuntu / WSL](#setup-ubuntu--wsl)):
 
 ```bash
 scripts/run_phase1.sh
@@ -70,21 +71,37 @@ git-ignored `results/local/phase1/`.
 ```bash
 git clone --recurse-submodules https://github.com/webarkit/artoolkit-nft-bench.git
 cd artoolkit-nft-bench
-cmake -S . -B build/win-vs2022 -G "Visual Studio 17 2022" -A x64      # fetches zlib, libjpeg-turbo, nlohmann/json, stb
-cmake --build build/win-vs2022 --config Release
+cmake --preset windows-msvc          # fetches zlib, libjpeg-turbo, nlohmann/json, stb
+cmake --build --preset windows-msvc
 python -m venv .venv
 .venv/Scripts/python -m pip install --use-feature=truststore -r requirements-dev.txt
 .venv/Scripts/python -m pip install --use-feature=truststore --no-build-isolation -e .
 ```
 
 * `--use-feature=truststore` makes pip use the Windows certificate store; drop it where Python's own CA bundle works.
-* Linux/gcc: `tools/docker_build.sh` in an `ubuntu:24.04` container (`ARX_FETCH_DEPS=OFF` uses the system zlib/libjpeg).
+
+## Setup (Ubuntu / WSL)
+
+```bash
+sudo apt install build-essential cmake ninja-build libjpeg-dev zlib1g-dev python3-venv
+git clone --recurse-submodules https://github.com/webarkit/artoolkit-nft-bench.git
+cd artoolkit-nft-bench
+cmake --preset linux-gcc && cmake --build --preset linux-gcc
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt && .venv/bin/pip install --no-build-isolation -e .
+```
+
+Use `.venv/bin/python` wherever this README says `.venv/Scripts/python`. The same steps run in CI and in
+`tools/docker_build.sh` (an `ubuntu:24.04` container).
+
+## Common notes
+
 * Set a machine label for result headers in the git-ignored `bench.local.json`: `{"host_label": "desktop-1"}`.
 
 ## Tests
 
 ```bash
-ctest --test-dir build/win-vs2022 -C Release
+ctest --preset windows-msvc
 .venv/Scripts/python -m pytest -q
 ```
 
@@ -111,7 +128,7 @@ Tracked as [milestones](https://github.com/webarkit/artoolkit-nft-bench/mileston
 | milestone | content | release |
 |---|---|---|
 | M1 — Native baseline | CMake build, frame banks, scorer, native runner, first results | [v0.1.0](https://github.com/webarkit/artoolkit-nft-bench/releases/tag/v0.1.0) |
-| M2 — Project infrastructure | README, agent files, skills, hooks, CI | v0.2.0 |
+| M2 — Project infrastructure | README, agent files, skills, hooks, Linux build, CI | v0.2.0 |
 | M3 — Real-footage ground truth | camera calibration, manual annotations, new footage | v0.3.0 |
 | next | same sources in WASM, then jsartoolkitNFT (Node, Chromium), then marker generators | |
 

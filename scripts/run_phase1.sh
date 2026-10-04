@@ -27,15 +27,16 @@
 
 # Phase 1: native results at 220 dpi on the synthetic and the real bank. Raw results go to results/local/phase1/.
 set -euo pipefail
-cd "$(dirname "$0")/.."
-B=build/win-vs2022/native/Release
-PY=.venv/Scripts/python
+source "$(dirname "$0")/_env.sh"
+cd "$ROOT"
+EXPORT=$(tool nft_export)
+RUN=$(tool nft_run)
 DS=data/markers/pinball-d220-l2-i1
 OUT=results/local/phase1
 REPEATS=${REPEATS:-5}
 mkdir -p "$OUT"
 [ -f "$DS/pinball.fset3" ] || scripts/make_marker.sh data/markers/pinball.jpg 220 30 220 2 1 "$DS"
-[ -f banks/synthetic-d220/bank.json ] || "$B/nft_export.exe" out=banks/synthetic-d220 image=data/markers/pinball.jpg dpi=220 \
+[ -f banks/synthetic-d220/bank.json ] || "$EXPORT" out=banks/synthetic-d220 image=data/markers/pinball.jpg dpi=220 \
     dataset=pinball-d220-l2-i1 trials=10 seqs=3 seqlen=90 speeds=0,2,5,10,20,35 name=synthetic-d220
 if [ ! -f banks/pinball-bench/bank.json ]; then
     $PY scripts/make_video_bank.py --video data/videos/pinball-bench.mp4 --out banks/pinball-bench \
@@ -45,7 +46,7 @@ fi
 for bank in synthetic-d220 pinball-bench; do
     for t in 1 -1; do
         tag=$([ "$t" = 1 ] && echo t1 || echo tN)
-        "$B/nft_run.exe" bank=banks/$bank dataset=$DS/pinball dpi=220 threads=$t repeats=$REPEATS out=$OUT/native-$bank-$tag.json
+        "$RUN" bank=banks/$bank dataset=$DS/pinball dpi=220 threads=$t repeats=$REPEATS out=$OUT/native-$bank-$tag.json
         echo "done $bank $tag"
     done
 done

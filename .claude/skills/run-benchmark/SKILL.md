@@ -18,10 +18,10 @@ Raw results go to `results/local/phase1/` (git-ignored). Run it in the backgroun
 ## Single steps
 
 ```bash
-B=build/win-vs2022/native/Release
-$B/nft_export.exe out=banks/<name> image=data/markers/pinball.jpg dpi=220 dataset=pinball-d220-l2-i1 [trials= mode= scenarios= speeds=]
-$B/nft_run.exe bank=banks/<name> dataset=data/markers/pinball-d220-l2-i1/pinball dpi=220 out=results/local/<file>.json threads=1 repeats=5
-.venv/Scripts/python -m nftbench.score --bank banks/<name> --result results/local/<file>.json [--result ...] --md results/phase<n>/<table>.md
+EXPORT=$(python -m nftbench.tools which nft_export); RUN=$(python -m nftbench.tools which nft_run)
+$EXPORT out=banks/<name> image=data/markers/pinball.jpg dpi=220 dataset=pinball-d220-l2-i1 [trials= mode= scenarios= speeds=]
+$RUN bank=banks/<name> dataset=data/markers/pinball-d220-l2-i1/pinball dpi=220 out=results/local/<file>.json threads=1 repeats=5
+<venv-python> -m nftbench.score --bank banks/<name> --result results/local/<file>.json [--result ...] --md results/phase<n>/<table>.md
 ```
 
 ## Rules

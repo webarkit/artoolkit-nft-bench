@@ -34,15 +34,20 @@ Read the [spec](docs/superpowers/specs/2026-10-03-artoolkit-nft-bench-design.md)
 
 ```bash
 git submodule update --init
-cmake -S . -B build/win-vs2022 -G "Visual Studio 17 2022" -A x64
-cmake --build build/win-vs2022 --config Release
+cmake --preset windows-msvc            # Linux: linux-gcc
+cmake --build --preset windows-msvc
 python -m venv .venv
-.venv/Scripts/python -m pip install --use-feature=truststore -r requirements-dev.txt
-.venv/Scripts/python -m pip install --use-feature=truststore --no-build-isolation -e .
-ctest --test-dir build/win-vs2022 -C Release
-.venv/Scripts/python -m pytest -q          # needs the native build: it drives nft_export / nft_run
+<venv-python> -m pip install --use-feature=truststore -r requirements-dev.txt
+<venv-python> -m pip install --use-feature=truststore --no-build-isolation -e .
+ctest --preset windows-msvc
+<venv-python> -m pytest -q          # needs the native build: it drives nft_export / nft_run
 scripts/run_phase1.sh                       # phase 1 measurements -> results/local/phase1/ (long)
 ```
+
+`<venv-python>` is `.venv/Scripts/python` on Windows and `.venv/bin/python` on Linux. Presets: `windows-msvc` (Visual Studio 2022)
+and `linux-gcc` (Ninja, system zlib/libjpeg: `apt install build-essential cmake ninja-build libjpeg-dev zlib1g-dev python3-venv`).
+`--use-feature=truststore` is only needed where Python's CA bundle fails (it does on the maintainer's Windows machine).
+CI (`.github/workflows/ci.yml`) runs the Linux sequence on every push and PR to `dev`/`main`, and Windows on PRs to `main`.
 
 This list is the authoritative one, kept in sync with `CONTRIBUTING.md`.
 Do not claim a change is verified without running these.
@@ -62,7 +67,7 @@ Do not claim a change is verified without running these.
   (`gh repo view`, `gh api repos/<owner>/<repo>/readme`).
 * Do not copy code from projects with incompatible licences (e.g. WOFT, CC BY-NC-SA) into this LGPL repository.
 * Every source file carries the LGPL header template used across webarkit (file name, project, SPDX `LGPL-3.0-or-later`, LGPL notice,
-  `Copyright 2026 WebARKit.`, author). Run `.venv/Scripts/python scripts/license_headers.py --fix` after adding files; the check
+  `Copyright 2026 WebARKit.`, author). Run `<venv-python> scripts/license_headers.py --fix` after adding files; the check
   also runs inside `pytest`. Claude Code has the same procedure as the `license-header` skill in `.claude/skills/`.
 * An accepted ADR's decision is never edited in place; supersede it with a new ADR.
 * Every PR and issue is assigned to its milestone (`M<n> — <name>`, a spec phase or a declared work block). Releases follow

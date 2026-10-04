@@ -1,0 +1,30 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "windows-msvc",
+      "displayName": "Windows, Visual Studio 2022, x64",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/windows-msvc",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
+      "name": "linux-gcc",
+      "displayName": "Linux, gcc, Ninja, Release (system zlib/libjpeg)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-gcc",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "ARX_FETCH_DEPS": "OFF" },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "windows-msvc", "configurePreset": "windows-msvc", "configuration": "Release" },
+    { "name": "linux-gcc", "configurePreset": "linux-gcc" }
+  ],
+  "testPresets": [
+    { "name": "windows-msvc", "configurePreset": "windows-msvc", "configuration": "Release", "output": { "outputOnFailure": true } },
+    { "name": "linux-gcc", "configurePreset": "linux-gcc", "output": { "outputOnFailure": true } }
+  ]
+}

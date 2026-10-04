@@ -108,7 +108,7 @@ def fix_file(p: Path) -> bool:
     if body.startswith("#!"):
         shebang, body = body.split("\n", 1)
         shebang += "\n"
-    p.write_text(shebang + header(p) + ("\n" if body and not body.startswith("\n") else "") + body, encoding="utf-8")
+    p.write_text(shebang + header(p) + ("\n" if body and not body.startswith("\n") else "") + body, encoding="utf-8", newline="\n")
     return True
 
 

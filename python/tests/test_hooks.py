@@ -77,3 +77,31 @@ def test_header_hook_ignores_non_sources_and_missing_files():
     md = run(HEADER, {"tool_name": "Write", "tool_input": {"file_path": str(ROOT / "README.md")}})
     gone = run(HEADER, {"tool_name": "Write", "tool_input": {"file_path": str(ROOT / "nope/missing.py")}})
     assert md.returncode == 0 and gone.returncode == 0
+
+
+def test_settings_run_hooks_through_the_portable_launcher():
+    settings = json.loads((ROOT / ".claude/settings.json").read_text())
+    cmds = [h["command"] for ev in settings["hooks"].values() for m in ev for h in m["hooks"]]
+    assert cmds and all(c.startswith("sh .claude/hooks/run.sh ") for c in cmds)
+
+
+def test_launcher_propagates_the_block_exit_code():
+    import shutil
+    sh = shutil.which("sh") or shutil.which("bash")
+    if sh is None:
+        import pytest
+        pytest.fail("a POSIX shell is required for the hooks (Git Bash on Windows)")
+    p = subprocess.run([sh, ".claude/hooks/run.sh", ".claude/hooks/guard_extern.py"],
+                       input=json.dumps(edit("extern/artoolkit5/x.c")), capture_output=True, text=True, cwd=ROOT)
+    assert p.returncode == 2 and "extern/artoolkit5" in p.stderr
+
+
+def test_header_fixer_keeps_lf_line_endings():
+    f = ROOT / "python" / "nftbench" / "_eol_probe.py"
+    try:
+        f.write_bytes(b'"""probe"""\nx = 1\n')
+        run(HEADER, {"tool_name": "Write", "tool_input": {"file_path": str(f)}})
+        data = f.read_bytes()
+        assert b"SPDX-License-Identifier" in data and b"\r\n" not in data
+    finally:
+        f.unlink(missing_ok=True)

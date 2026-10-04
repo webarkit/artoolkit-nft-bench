@@ -11,5 +11,5 @@ Adds to the root [AGENTS.md](../AGENTS.md); never overrides it.
   host names, user names, paths or environment variables.
 * Timing: wall time around the library call only (`nowMs()`); with `repeats>1` the first pass is warm-up.
 * Tests: `native/tests/*.cpp` with the assertion helpers in `check.hpp`, registered with `add_test`; run
-  `ctest --test-dir build/win-vs2022 -C Release`. New test → add it to the `foreach` in `native/CMakeLists.txt`.
+  `ctest --preset windows-msvc`. New test → add it to the `foreach` in `native/CMakeLists.txt`.
 * Bank and result formats are defined by `python/nftbench/schema.py`; change both sides together.
