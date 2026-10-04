@@ -24,6 +24,9 @@ milestone. The release is the last step of a milestone ([ADR-0002](docs/adr/0002
 (annotated) on its merge commit, create the GitHub Release with the changelog entry, then close the milestone. Before 1.0, each
 milestone bumps the minor version. Pull requests that change behaviour or results add a line under `[Unreleased]`.
 
+Pull requests target `dev`, so GitHub does not close issues from "Closes #n" (it only does so for the default branch, `main`).
+Link the issue in the PR's Development sidebar, and close it by hand with a comment naming the PR once the PR is merged.
+
 ## Commit messages and PR titles
 
 [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): summary`, imperative and concise.
