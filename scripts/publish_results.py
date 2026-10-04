@@ -30,8 +30,8 @@
         webarkit/artoolkit-nft-bench-results> [--release] [--dry-run]
 
 Steps: scrub absolute repository paths from text files, scan every file for forbidden data (abort, naming file and line,
-on any hit), pack <name>.tar.gz, commit it to the results repository and push, optionally attach it to an immutable release
-`results/<name>` of this repository, and append the entry to results/manifest.json (commit that file yourself).
+on any hit), pack <name>.tar.gz, commit it to the results repository and push, optionally create an immutable release
+`<name>` in the results repository, and append the entry to results/manifest.json (commit that file yourself).
 """
 import argparse
 import gzip
@@ -44,7 +44,7 @@ import sys
 import tarfile
 from pathlib import Path
 
-from nftbench.publish import manifest_entry, scan_text, scrub_text
+from nftbench.publish import manifest_entry, release_commands, scan_text, scrub_text
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT_SUFFIXES = {".json", ".md", ".txt", ".log", ".csv"}
@@ -59,7 +59,8 @@ def main() -> int:
     ap.add_argument("name")
     ap.add_argument("--from", dest="src", required=True, type=Path)
     ap.add_argument("--results-repo", type=Path)
-    ap.add_argument("--release", action="store_true")
+    ap.add_argument("--release", action="store_true", help="also create an immutable release in the results repository")
+    ap.add_argument("--results-slug", default="webarkit/artoolkit-nft-bench-results")
     ap.add_argument("--dry-run", action="store_true", help="scrub and scan only")
     a = ap.parse_args()
 
@@ -116,10 +117,9 @@ def main() -> int:
 
     tag = None
     if a.release:
-        tag = f"results/{a.name}"
-        subprocess.run(["gh", "release", "create", tag, str(dest), "--prerelease", "--target", code_commit,
-                        "--title", f"Results: {a.name}", "--notes", f"Archive SHA-256 in results/manifest.json."],
-                       cwd=ROOT, check=True)
+        for cmd in release_commands(a.results_slug, a.name, dest.relative_to(a.results_repo).as_posix(), results_commit):
+            subprocess.run(cmd, cwd=a.results_repo, check=True)
+        tag = f"{a.results_slug.split('/')[-1]}@{a.name}"
 
     manifest = ROOT / "results" / "manifest.json"
     entries = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else []

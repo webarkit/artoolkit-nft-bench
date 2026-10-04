@@ -1,6 +1,6 @@
 # ADR-0002: One milestone per phase; a release closes it
 
-Status: Proposed · Date: 2026-10-04
+Status: Accepted · Date: 2026-10-04
 
 ## Context
 
@@ -14,13 +14,20 @@ Options considered:
 2. **Time-based releases.** Predictable, but phases do not finish on a calendar, and a benchmark release half-way through a
    phase publishes numbers nobody has reviewed.
 3. **One GitHub milestone per phase, released when the milestone is complete.**
+4. **One milestone per phase or per declared work block** (infrastructure, ground-truth quality) that is not a spec phase but is
+   large enough to deserve its own release.
 
 ## Decision
 
-* Every phase of the spec is a GitHub milestone named `M<n> — <phase name>` (e.g. `M1 — Native baseline`). Every pull request and
-  issue belonging to that phase is assigned to it.
-* A milestone is complete when its phase's deliverables are merged into `dev`: code, tests, the results summary in
-  `results/phase<n>/`, and the raw results published per [ADR-0001](0001-results-storage.md).
+* Every phase of the spec, and every work block declared as a milestone, is a GitHub milestone named `M<n> — <name>`, numbered
+  in the order the work is done (e.g. `M1 — Native baseline`, `M2 — Project infrastructure`, `M3 — Real-footage ground truth`,
+  then the remaining spec phases). Milestone numbers therefore need not equal spec phase numbers. Every pull request and issue
+  belonging to a milestone is assigned to it.
+* A work block is declared by creating its milestone with a one-line scope in its description and listing it in the spec's
+  Roadmap section. Option 3 alone was not enough: infrastructure and ground-truth work would have been folded into the next spec
+  phase, mixing unrelated changes in one release.
+* A milestone is complete when its deliverables are merged into `dev`: code, tests and, for milestones that produce results, the
+  results summary in `results/phase<n>/` and the raw results published per [ADR-0001](0001-results-storage.md).
 * **The release is the last step of the milestone.** In order:
   1. a pull request into `dev` closes the `[Unreleased]` changelog section as the new version;
   2. the release pull request goes from `dev` into `main` and is merged with a merge commit; it is assigned to the milestone;
@@ -29,7 +36,7 @@ Options considered:
   5. the milestone is closed.
 * Versions: before 1.0, each completed milestone bumps the minor version (`M1` → `v0.1.0`, `M2` → `v0.2.0`, ...). A fix to a
   released milestone's results or code is a patch release (`v0.1.1`) and does not reopen the milestone.
-* Work that belongs to no phase (tooling, documentation, CI) is assigned to the open milestone it lands in.
+* Small work that belongs to no milestone (a fix, a dependency bump) is assigned to the open milestone it lands in, or to none.
 
 ## Consequences
 
