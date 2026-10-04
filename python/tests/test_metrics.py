@@ -97,7 +97,7 @@ def test_first_lock_frame():
     fr = [gt_frame(0, i, pose()) for i in range(4)]
     st = ["lost", "lost", "detected", "tracked"]
     r = result([rf(0, i, s, None if s == "lost" else pose()) for i, s in enumerate(st)])
-    assert summarize(bank(fr), r)["groups"]["g"]["first_lock_frame"] == 2
+    assert summarize(bank(fr), r)["groups"]["g"]["first_lock_median"] == 2
 
 
 def test_project_corners_with_margin_expands_the_quad():
@@ -123,3 +123,41 @@ def test_summarize_applies_gt_margin_to_corner_ground_truth():
     assert summarize(bank([f]), r)["groups"]["real"]["median_px"] is None or \
         summarize(bank([f]), r)["groups"]["real"]["median_px"] > 2.9
     assert summarize(bank([f]), r, gt_margin_mm=3.0)["groups"]["real"]["median_px"] == pytest.approx(0.0, abs=1e-6)
+
+
+def test_error_percentiles_cover_all_valid_frames_not_only_ok_ones():
+    fr = [gt_frame(k, 0, pose()) for k in range(4)]
+    r = result([rf(k, 0, "detected", pose(dx=d)) for k, d in enumerate([1.0, 2.0, 8.0, 12.0])])
+    g = summarize(bank(fr), r, ok_px=5.0)["groups"]["g"]
+    assert g["ok_pct"] == 50.0
+    assert g["median_px"] == pytest.approx(5.0)          # median of 1, 2, 8, 12
+    assert g["p90_px"] > 5.0
+
+
+def test_loss_right_after_detection_is_a_lost_event():
+    fr = [gt_frame(0, i, pose()) for i in range(3)]
+    st = ["detected", "lost", "detected"]
+    r = result([rf(0, i, s, None if s == "lost" else pose()) for i, s in enumerate(st)])
+    assert summarize(bank(fr), r)["groups"]["g"]["lost_events"] == 1
+
+
+def test_first_lock_is_per_sequence_relative_to_its_start():
+    fr = [gt_frame(s, i, pose()) for s in range(3) for i in range(5)]
+    locks = {0: 0, 1: 3, 2: 4}
+    r = result([rf(s, i, "detected" if i >= locks[s] else "lost", pose() if i >= locks[s] else None)
+                for s in range(3) for i in range(5)])
+    g = summarize(bank(fr), r)["groups"]["g"]
+    assert g["first_lock_median"] == 3 and g["first_lock_max"] == 4
+
+
+def test_bank_frames_missing_from_result_count_as_lost():
+    fr = [gt_frame(k, 0, pose()) for k in range(4)]
+    r = result([rf(0, 0, "detected", pose()), rf(1, 0, "detected", pose())])
+    g = summarize(bank(fr), r)["groups"]["g"]
+    assert g["n"] == 4 and g["valid_pct"] == 50.0 and g["n_missing"] == 2
+
+
+def test_result_frame_not_in_bank_is_incompatible():
+    from nftbench.schema import IncompatibleResult
+    with pytest.raises(IncompatibleResult):
+        summarize(bank([gt_frame(0, 0, pose())]), result([rf(0, 0, "detected", pose()), rf(9, 0, "detected", pose())]))

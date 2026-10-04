@@ -90,38 +90,53 @@ def _gt_corners(f, cam, w, h):
 
 
 def summarize(bank: Bank, result: Result, ok_px: float = 5.0, gt_margin_mm: float = 0.0) -> dict:
-    """gt_margin_mm: width of a print border around the marker image, applied only to segmented corner ground truth."""
+    """Per-group metrics. Error percentiles cover every valid frame; `ok` is the share below `ok_px`.
+
+    gt_margin_mm: width of a print border around the marker image, applied only to segmented corner ground truth.
+    Bank frames with no result frame count as lost (`n_missing`); a result frame not in the bank is an error.
+    """
+    from .schema import IncompatibleResult, ResultFrame
     gt = {(f.seq, f.i): f for f in bank.frames}
     W, H, cam = bank.marker_w_mm, bank.marker_h_mm, bank.camera
-    by_group = defaultdict(lambda: defaultdict(list))
+    got = {}
     for r in result.frames:
-        by_group[gt[(r.seq, r.i)].group][r.seq].append(r)
+        if (r.seq, r.i) not in gt:
+            raise IncompatibleResult(f"result frame seq={r.seq} i={r.i} is not in bank {bank.name}")
+        got[(r.seq, r.i)] = r
+    by_group = defaultdict(lambda: defaultdict(list))
+    missing = defaultdict(int)
+    for key, f in gt.items():
+        r = got.get(key)
+        if r is None:
+            missing[f.group] += 1
+            r = ResultFrame(f.seq, f.i, "lost", None, None, None, 0.0, 0.0)
+        by_group[f.group][f.seq].append(r)
 
     groups, all_states, all_times = {}, [], []
     for name, seqs in by_group.items():
         n = excl = valid = ok = lost_events = 0
-        px, mm, deg, jit, t_det, t_trk, t_tot, blocked = [], [], [], [], [], [], [], []
-        first_lock = None
+        px, mm, deg, jit, t_det, t_trk, t_tot, blocked, locks = [], [], [], [], [], [], [], [], []
         for seq_frames in seqs.values():
             seq_frames.sort(key=lambda r: r.i)
-            prev, run, states, times = None, [], [], []
+            i0 = seq_frames[0].i
+            prev_valid, run, states, times, lock = False, [], [], [], None
             for r in seq_frames:
                 f = gt[(r.seq, r.i)]
                 ok_pose = r.state in VALID_STATES and pose_valid(r.pose, W, H)
                 state = r.state if ok_pose else "lost"
                 states.append(state)
                 times.append(f.t)
-                if prev == "tracked" and state == "lost":
+                if prev_valid and not ok_pose:
                     lost_events += 1
-                if ok_pose and first_lock is None:
-                    first_lock = r.i
+                if ok_pose and lock is None:
+                    lock = r.i - i0
                 if state == "tracked":
                     run.append(project_corners(r.pose, cam, W, H))
                 else:
                     if len(run) >= 3:
                         jit.append(jitter_px(np.stack(run)))
                     run = []
-                prev = state
+                prev_valid = ok_pose
                 if r.t_detect_ms is not None:
                     t_det.append(r.t_detect_ms)
                 if r.t_track_ms is not None:
@@ -138,22 +153,24 @@ def summarize(bank: Bank, result: Result, ok_px: float = 5.0, gt_margin_mm: floa
                 valid += 1
                 margin = gt_margin_mm if f.gt_corners is not None else 0.0
                 e = corner_error_px(r.pose, gc, cam, W, H, margin)
-                if e < ok_px:
-                    ok += 1
-                    px.append(e)
-                    if f.gt_pose is not None:
-                        t_mm, r_deg = pose_error(r.pose, f.gt_pose, W, H)
-                        mm.append(t_mm)
-                        deg.append(r_deg)
+                px.append(e)
+                ok += e < ok_px
+                if f.gt_pose is not None:
+                    t_mm, r_deg = pose_error(r.pose, f.gt_pose, W, H)
+                    mm.append(t_mm)
+                    deg.append(r_deg)
             if len(run) >= 3:
                 jit.append(jitter_px(np.stack(run)))
+            if lock is not None:
+                locks.append(lock)
             all_states.append(states)
             all_times.append(times)
         groups[name] = {
-            "n": n, "n_excluded": excl,
+            "n": n, "n_excluded": excl, "n_missing": missing[name],
             "valid_pct": 100.0 * valid / n if n else None, "ok_pct": 100.0 * ok / n if n else None,
             "median_px": _q(px, 50), "p90_px": _q(px, 90), "median_mm": _q(mm, 50), "median_deg": _q(deg, 50),
-            "lost_events": lost_events, "first_lock_frame": first_lock,
+            "lost_events": lost_events,
+            "first_lock_median": _q(locks, 50), "first_lock_max": max(locks) if locks else None,
             "jitter_px": float(np.mean(jit)) if jit else None,
             "t_detect_ms": _pct(t_det), "t_track_ms": _pct(t_trk), "t_total_ms": _pct(t_tot),
             "blocked_ms_max": max(blocked) if blocked else None,

@@ -48,13 +48,14 @@ def _label(h: dict) -> str:
 
 def render(bank, scored: list, ok_px: float, margin: float = 0.0) -> str:
     out = [f"# {bank.name} ({bank.kind}, {bank.width}x{bank.height}, marker {bank.marker_dataset} @ {bank.marker_dpi:g} dpi)",
-           "", f"ok = valid pose with mean corner error < {ok_px:g} px.", ""]
+           "", f"Errors (px, mm, deg) cover every valid frame; ok = valid pose with mean corner error < {ok_px:g} px. "
+           "lock = frames from sequence start to the first valid pose.", ""]
     if margin:
         out[-1:] = [f"Segmented corners compared with the marker expanded by a {margin:g} mm print border.", ""]
     for h, s in scored:
         out += [f"## {_label(h)} — track share {100 * s['track_share']:.1f}%, "
                 f"trackTimeShare {100 * s['track_time_share']:.1f}%", "",
-                "| group | n | excl | valid% | ok% | med px | p90 px | med mm | med deg | lost | 1st lock | jitter px "
+                "| group | n | excl | valid% | ok% | med px | p90 px | med mm | med deg | lost | lock med/max | jitter px "
                 "| det ms p50/p95 | trk ms p50/p95 | total ms p50/p95/max |",
                 "|" + "---|" * 15]
         for g, m in sorted(s["groups"].items()):
@@ -62,7 +63,7 @@ def render(bank, scored: list, ok_px: float, margin: float = 0.0) -> str:
             out.append(
                 f"| {g} | {m['n']} | {m['n_excluded']} | {_f(m['valid_pct'], '{:.0f}')} | {_f(m['ok_pct'], '{:.0f}')} "
                 f"| {_f(m['median_px'])} | {_f(m['p90_px'])} | {_f(m['median_mm'])} | {_f(m['median_deg'])} "
-                f"| {m['lost_events']} | {_f(m['first_lock_frame'], '{}')} | {_f(m['jitter_px'])} "
+                f"| {m['lost_events']} | {_f(m['first_lock_median'], '{:g}')}/{_f(m['first_lock_max'], '{}')} | {_f(m['jitter_px'])} "
                 f"| {_f(d['p50'], '{:.1f}')}/{_f(d['p95'], '{:.1f}')} | {_f(t['p50'], '{:.1f}')}/{_f(t['p95'], '{:.1f}')} "
                 f"| {_f(tt['p50'], '{:.1f}')}/{_f(tt['p95'], '{:.1f}')}/{_f(tt['max'], '{:.1f}')} |")
         out.append("")

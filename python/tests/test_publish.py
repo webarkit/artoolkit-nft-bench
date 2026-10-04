@@ -74,3 +74,24 @@ def test_manifest_entry_fields():
     e = manifest_entry("phase-1", b"abc", "1234567", "89abcde", "results/phase-1")
     assert e == {"name": "phase-1", "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
                  "size": 3, "code_commit": "1234567", "results_commit": "89abcde", "release_tag": "results/phase-1"}
+
+
+def test_publish_scans_inside_gzipped_results(tmp_path):
+    import gzip, subprocess, sys
+    src = tmp_path / "res"; src.mkdir()
+    with gzip.open(src / "r.json.gz", "wt") as f:
+        f.write('{"log": "/home/someone/secret.txt"}')
+    root = Path(__file__).resolve().parents[2]
+    p = subprocess.run([sys.executable, str(root / "scripts/publish_results.py"), "x", "--from", str(src), "--dry-run"],
+                       capture_output=True, text=True)
+    assert p.returncode == 1 and "r.json.gz" in p.stderr
+
+
+def test_publish_refuses_unknown_binary_files(tmp_path):
+    import subprocess, sys
+    src = tmp_path / "res"; src.mkdir()
+    (src / "blob.bin").write_bytes(b"\x00\x01")
+    root = Path(__file__).resolve().parents[2]
+    p = subprocess.run([sys.executable, str(root / "scripts/publish_results.py"), "x", "--from", str(src), "--dry-run"],
+                       capture_output=True, text=True)
+    assert p.returncode == 1 and "blob.bin" in p.stderr

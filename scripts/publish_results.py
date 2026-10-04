@@ -34,6 +34,7 @@ on any hit), pack <name>.tar.gz, commit it to the results repository and push, o
 `results/<name>` of this repository, and append the entry to results/manifest.json (commit that file yourself).
 """
 import argparse
+import gzip
 import getpass
 import io
 import json
@@ -71,11 +72,17 @@ def main() -> int:
     for p in files:
         rel = p.relative_to(a.src).as_posix()
         data = p.read_bytes()
-        if p.suffix in TEXT_SUFFIXES:
-            text = scrub_text(data.decode("utf-8", errors="replace"), ROOT)
-            problems += [f"{rel}:{line}: {reason}" for line, reason in scan_text(text, user, host)]
-            data = text.encode("utf-8")
-        payload[rel] = data
+        gz = p.suffix == ".gz"
+        inner = Path(p.stem).suffix if gz else p.suffix
+        if inner not in TEXT_SUFFIXES:
+            problems.append(f"{rel}: not a known text format; only {sorted(TEXT_SUFFIXES)} (optionally .gz) are published")
+            continue
+        if gz:
+            data = gzip.decompress(data)
+        text = scrub_text(data.decode("utf-8", errors="replace"), ROOT)
+        problems += [f"{rel}:{line}: {reason}" for line, reason in scan_text(text, user, host)]
+        data = text.encode("utf-8")
+        payload[rel] = gzip.compress(data, mtime=0) if gz else data
     if problems:
         print("refusing to publish, forbidden data found:", file=sys.stderr)
         print("\n".join(problems), file=sys.stderr)

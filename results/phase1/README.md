@@ -11,7 +11,7 @@ published to the results repository (ADR-0001). Supporting notes: [equivalence.m
 
 ## Synthetic bank (threads = 1)
 
-Detection (KPM), 10 frames per level, `ok` = mean corner error < 5 px:
+Detection (KPM), 10 frames per level. Errors are medians over every frame with a valid pose; `ok` = mean corner error < 5 px.
 
 | condition | detected | median error | KPM time p50 |
 |---|---|---|---|
@@ -29,15 +29,16 @@ Tracking (KPM init + AR2), 3 sequences × 90 frames per speed:
 | speed (px/frame) | valid | ok | median error | lost events | AR2 time p50 |
 |---|---|---|---|---|---|
 | 0 – 20 | 100% | 100% | 0.6–0.9 px | 0 | 0.9–1.0 ms |
-| 35 (with motion blur) | 14% | 4% | 3.7 px | 11 | 1.2 ms |
+| 35 (with motion blur) | 14% | 4% | 25 px (the few poses AR2 still returns are mostly wrong) | 16 | 1.2 ms |
 
 ## Real clip `pinball-bench.mp4` (threads = 1)
 
 * One KPM detection on the first frame (73 ms), then **AR2 tracks all 297 remaining frames without a single loss**
   (track share 99.7%, trackTimeShare 99.6%).
 * AR2 time p50 / p95: 1.2 / 1.5 ms per frame at 1280x720.
-* Corner error against segmented ground truth: median 4.0 px, p90 4.6 px (291 frames with ground truth, 7 excluded).
-  `ok%` (49%) at the 5 px threshold measures the ground truth as much as the tracker; see the next section.
+* Corner error against segmented ground truth, over all 291 frames with ground truth (7 excluded): median **5.1 px**,
+  p90 9.3 px, max 16 px. It grows through the clip (median 3.8 → 5.1 → 8.0 px over successive thirds) as the poster gets closer
+  and larger. `ok%` (49%) at the 5 px threshold measures the ground truth as much as the tracker; see the next section.
 
 ## Threads
 
@@ -58,10 +59,14 @@ Likely causes, not yet separated:
 * the poster is not perfectly flat (its bottom-left corner appears slightly bent in the footage);
 * segmentation accuracy is about 1–2 px on sharp frames and worse under blur.
 
-Real-clip accuracy is therefore an upper bound on the error, useful for comparing engines on identical ground truth, not as an
-absolute figure. Exact accuracy comes from the synthetic bank.
+Real-clip accuracy therefore mixes tracker error with ground-truth and camera-model error: it is useful for comparing engines on
+identical ground truth, not as an absolute figure. The growth of the error with poster size points to the camera model rather than
+the tracker. Exact accuracy comes from the synthetic bank.
 
 ## Caveats
+
+* An earlier draft of these tables computed error medians only over frames already under 5 px; the final review caught it
+  and the tables were regenerated (synthetic detection rows were unaffected, since every valid pose there is under 5 px).
 
 * Jitter follows the spec (second difference of projected corners) and includes real camera motion, so it grows with speed
   even when tracking is exact; on synthetic banks a residual jitter would isolate tracker noise.
