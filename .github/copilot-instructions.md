@@ -9,3 +9,4 @@ The full guidance is in **[`AGENTS.md`](../AGENTS.md)** (source of truth). Criti
 - Results storage per `docs/adr/0001-results-storage.md`; never commit raw results, `banks/` or build trees.
 - Sensitive data: only allow-listed host fields in results; never host names, user names, emails, absolute paths, env vars, tokens, IP/MAC, serials.
 - License LGPL-3.0-or-later. Every repository artifact is in English.
+- Folder rules: `native/AGENTS.md`, `python/AGENTS.md`, `data/AGENTS.md`, `results/AGENTS.md`. Procedures: `.claude/skills/*/SKILL.md` (run-benchmark, publish-results, new-engine-runner, license-header).

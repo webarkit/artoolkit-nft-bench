@@ -21,6 +21,15 @@ Read the [spec](docs/superpowers/specs/2026-10-03-artoolkit-nft-bench-design.md)
 * `banks/` (git-ignored) — decoded frame banks. `results/local/` (git-ignored) — development results.
 * `docs/adr/`, `docs/superpowers/specs/`, `docs/superpowers/plans/` — design records.
 
+## Folder rules, skills and hooks
+
+* `native/`, `python/`, `data/` and `results/` each have an `AGENTS.md` (imported by a local `CLAUDE.md`) with folder-local rules.
+  They add to this file and never override it; where they disagree, this file wins and the folder file is the bug.
+* Claude Code skills in `.claude/skills/`: `license-header`, `run-benchmark`, `publish-results`, `new-engine-runner`. Other agents:
+  read the same files as procedures.
+* Claude Code hooks (`.claude/settings.json`): edits inside `extern/` are blocked; a source file written without the LGPL header
+  gets it added. Both never fail an unrelated tool call; `python/tests/test_hooks.py` tests them.
+
 ## Commands
 
 ```bash
