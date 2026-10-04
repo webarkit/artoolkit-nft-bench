@@ -37,11 +37,24 @@ endif()
 add_executable(nft_export src/nft_export.cpp)
 target_link_libraries(nft_export PRIVATE nftbench_synth)
 
-foreach(t test_synth test_bank_io)
+add_library(nftbench_engine STATIC src/engine.cpp)
+target_link_libraries(nftbench_engine PUBLIC nftbench_synth KPM AR2 ARICP AR ARUtil)
+
+foreach(t test_synth test_bank_io test_engine)
     add_executable(${t} tests/${t}.cpp)
-    target_link_libraries(${t} PRIVATE nftbench_synth)
+    target_link_libraries(${t} PRIVATE nftbench_engine)
     target_compile_definitions(${t} PRIVATE NFTBENCH_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
     add_test(NAME ${t} COMMAND ${t})
 endforeach()
-add_custom_target(nftbench_tests DEPENDS test_synth test_bank_io)
+add_custom_target(nftbench_tests DEPENDS test_synth test_bank_io test_engine)
 set_target_properties(nftbench_synth nft_export test_synth test_bank_io PROPERTIES FOLDER "native")
+
+# The native runner. The artoolkit5 commit and the build flags go into every result header.
+execute_process(COMMAND git -C "${ARTK5_ROOT}" rev-parse --short HEAD OUTPUT_VARIABLE ARTK5_COMMIT
+                OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+add_executable(nft_run src/nft_run.cpp)
+target_link_libraries(nft_run PRIVATE nftbench_engine)
+target_compile_definitions(nft_run PRIVATE
+    NFTBENCH_ARTK5_COMMIT="${ARTK5_COMMIT}"
+    NFTBENCH_BUILD_FLAGS="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} $<CONFIG> ${CMAKE_CXX_FLAGS_RELEASE}")
+set_target_properties(nft_run nftbench_engine PROPERTIES FOLDER "native")
