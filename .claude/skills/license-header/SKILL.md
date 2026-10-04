@@ -8,8 +8,8 @@ description: Add or check the webarkit LGPL-3.0-or-later header on source files 
 ## Run it
 
 ```bash
-.venv/Scripts/python scripts/license_headers.py          # check: lists files without the header, exit 1 if any
-.venv/Scripts/python scripts/license_headers.py --fix    # add the header to every file that lacks it
+<venv-python> scripts/license_headers.py          # check: lists files without the header, exit 1 if any
+<venv-python> scripts/license_headers.py --fix    # add the header to every file that lacks it
 ```
 
 It covers every tracked or untracked (not ignored) file with suffix `.cpp .hpp .c .h .py .sh .cmake .mjs .js .ts` and every

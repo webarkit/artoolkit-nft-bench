@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 #
-#  make_marker.sh
+#  run.sh
 #  artoolkit-nft-bench
 #
 #  This file is part of artoolkit-nft-bench.
@@ -25,16 +25,6 @@
 #  Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
 #
 
-# Generate an NFT dataset reproducibly with the upstream genTexData tool.
-#   scripts/make_marker.sh <jpg> <dpi> <min_dpi> <max_dpi> <level> <leveli> <outdir>
-set -euo pipefail
-[ $# -eq 7 ] || { echo "usage: $0 <jpg> <dpi> <min_dpi> <max_dpi> <level> <leveli> <outdir>" >&2; exit 2; }
-jpg=$1 dpi=$2 mindpi=$3 maxdpi=$4 level=$5 leveli=$6 out=$7
-source "$(dirname "$0")/_env.sh"
-gen=$(tool genTexData)
-mkdir -p "$out"
-cp "$jpg" "$out/"
-cd "$out"
-"$gen" "$(basename "$jpg")" -dpi="$dpi" -min_dpi="$mindpi" -max_dpi="$maxdpi" -level="$level" -leveli="$leveli" < /dev/null \
-    > genTexData.log 2>&1
-ls "${jpg##*/}" >/dev/null && echo "dataset written to $out (log: genTexData.log, not committed)"
+# Run a hook script with whichever Python works here: python3 on Linux, python on Windows (where `python3` may be a store stub).
+if python3 -c "" >/dev/null 2>&1; then exec python3 "$@"; fi
+exec python "$@"

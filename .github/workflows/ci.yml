@@ -1,0 +1,83 @@
+#
+#  ci.yml
+#  artoolkit-nft-bench
+#
+#  This file is part of artoolkit-nft-bench.
+#
+#  SPDX-License-Identifier: LGPL-3.0-or-later
+#
+#  Copyright 2026 WebARKit.
+#
+#  Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
+#
+# Build, unit tests and Python tests. Benchmarks are not run here: shared CI machines give meaningless timings.
+name: CI
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: System packages
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential cmake ninja-build libjpeg-dev zlib1g-dev
+      - name: Configure
+        run: cmake --preset linux-gcc
+      - name: Build
+        run: cmake --build --preset linux-gcc
+      - name: Unit tests (ctest)
+        run: ctest --preset linux-gcc
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python environment
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -q -r requirements-dev.txt
+          .venv/bin/pip install -q --no-build-isolation -e .
+      - name: Python tests (pytest, incl. license headers and runner tests)
+        run: .venv/bin/python -m pytest -q
+
+  windows:
+    # MSVC build is slower (libjpeg-turbo and zlib are built from source); checked before releases and on demand.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.base_ref == 'main')
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Configure
+        run: cmake --preset windows-msvc
+      - name: Build
+        run: cmake --build --preset windows-msvc
+      - name: Unit tests (ctest)
+        run: ctest --preset windows-msvc
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python environment
+        shell: bash
+        run: |
+          python -m venv .venv
+          .venv/Scripts/python -m pip install -q -r requirements-dev.txt
+          .venv/Scripts/python -m pip install -q --no-build-isolation -e .
+      - name: Python tests
+        shell: bash
+        run: .venv/Scripts/python -m pytest -q

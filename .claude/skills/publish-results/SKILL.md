@@ -11,7 +11,7 @@ neither can be undone.
 ## 1. Dry run (no side effects)
 
 ```bash
-.venv/Scripts/python scripts/publish_results.py <name> --from results/local/<dir> --dry-run
+<venv-python> scripts/publish_results.py <name> --from results/local/<dir> --dry-run
 ```
 
 It scrubs absolute repository paths and scans every file (also inside `.gz`) for host names, user names, emails, absolute paths,
@@ -22,7 +22,7 @@ Files that are not `.json .md .txt .log .csv` (optionally `.gz`) are refused.
 
 ```bash
 git -C ../artoolkit-nft-bench-results pull
-.venv/Scripts/python scripts/publish_results.py <name> --from results/local/<dir> \
+<venv-python> scripts/publish_results.py <name> --from results/local/<dir> \
     --results-repo ../artoolkit-nft-bench-results --milestone "M<n> — <name>" --code-release v<x.y.z> --release
 ```
 
