@@ -1,0 +1,9 @@
+{"schema": 1, "kind": "synthetic", "name": "small", "width": 640, "height": 480,
+ "camera": {"fx": 579.4, "fy": 579.4, "cx": 320.0, "cy": 240.0},
+ "marker": {"image": "pinball.jpg", "dataset": "pinball-d220-l2-i1", "dpi": 220.0, "width_mm": 189.0, "height_mm": 236.5},
+ "frames": [
+  {"seq": 0, "i": 0, "file": "frames/000000.png", "t": 0.0, "group": "detect/scale=1.5",
+   "gt_pose": [1,0,0,-94.5, 0,-1,0,118.25, 0,0,-1,600], "gt_corners": null},
+  {"seq": 1, "i": 0, "file": "frames/000001.png", "t": 0.0, "group": "detect/scale=1.5",
+   "gt_pose": null, "gt_corners": [100,100, 200,100, 200,200, 100,200]}
+ ]}

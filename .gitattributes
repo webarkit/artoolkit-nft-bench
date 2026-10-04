@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.mp4 binary
+*.iset binary
+*.fset binary
+*.fset3 binary
+*.gz binary
