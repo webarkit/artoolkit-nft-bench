@@ -120,6 +120,13 @@ writing one runner. `nft_eval` becomes the `native` runner and the synthetic-fra
 
 Each phase ends with committed result files and a short written reading of them.
 
+## 8a. Roadmap
+
+Work is tracked as GitHub milestones ([list](https://github.com/webarkit/artoolkit-nft-bench/milestones)), one per spec phase or per
+declared work block, each closed by a release ([ADR-0002](../../adr/0002-milestones-and-releases.md)). Milestone numbers follow
+the order of the work, not the phase numbers above: M1 was phase 1; M2 (project infrastructure) and M3 (real-footage ground
+truth) are work blocks; the remaining phases follow from M4. The milestone list is the authoritative roadmap.
+
 ## 9. Risks and open questions
 
 * Segmentation ground truth may fail on blur or when the poster leaves the frame; mitigated by exclusion, manual sampling, and the

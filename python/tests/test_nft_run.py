@@ -35,15 +35,15 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-BUILD = Path(os.environ.get("NFTBENCH_BUILD", ROOT / "build/win-vs2022"))
 ALLOWED_HOST_FIELDS = {"host_label", "os", "cpu", "cores", "threads_hw", "ram_gb", "compiler", "build_flags", "runtime"}
 
 
 def exe(name):
-    for p in (BUILD / "native/Release" / f"{name}.exe", BUILD / "native" / name):
-        if p.exists():
-            return p
-    pytest.fail(f"{name} not built under {BUILD}; build the native targets first")
+    from nftbench.tools import find_tool
+    try:
+        return find_tool(name)
+    except FileNotFoundError as e:
+        pytest.fail(str(e))
 
 
 @pytest.fixture(scope="module")

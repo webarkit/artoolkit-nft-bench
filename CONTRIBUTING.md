@@ -18,11 +18,14 @@ and the [ADRs](docs/adr/) before larger changes.
 
 ## Milestones and releases
 
-Each phase of the spec is a GitHub milestone `M<n> — <phase name>`; assign every pull request and issue to the milestone of its
-phase. The release is the last step of a milestone ([ADR-0002](docs/adr/0002-milestones-and-releases.md)): close the
+Each phase of the spec, or declared work block, is a GitHub milestone `M<n> — <name>`; assign every pull request and issue to its
+milestone. The release is the last step of a milestone ([ADR-0002](docs/adr/0002-milestones-and-releases.md)): close the
 `[Unreleased]` section of `CHANGELOG.md` in a PR into `dev`, open the release PR `dev` → `main` (merge commit), tag `vX.Y.Z`
 (annotated) on its merge commit, create the GitHub Release with the changelog entry, then close the milestone. Before 1.0, each
 milestone bumps the minor version. Pull requests that change behaviour or results add a line under `[Unreleased]`.
+
+Pull requests target `dev`, so GitHub does not close issues from "Closes #n" (it only does so for the default branch, `main`).
+Link the issue in the PR's Development sidebar, and close it by hand with a comment naming the PR once the PR is merged.
 
 ## Commit messages and PR titles
 
@@ -41,15 +44,21 @@ Every repository artifact (code, comments, commits, PR titles and bodies, issues
 
 ```bash
 python -m venv .venv
-.venv/Scripts/python -m pip install --use-feature=truststore -r requirements-dev.txt
-.venv/Scripts/python -m pip install --use-feature=truststore --no-build-isolation -e .
-cmake -S . -B build/win-vs2022 -G "Visual Studio 17 2022" -A x64
-cmake --build build/win-vs2022 --config Release
-ctest --test-dir build/win-vs2022 -C Release
-.venv/Scripts/python -m pytest python/tests -q
+<venv-python> -m pip install --use-feature=truststore -r requirements-dev.txt
+<venv-python> -m pip install --use-feature=truststore --no-build-isolation -e .
+cmake --preset windows-msvc            # Linux: linux-gcc
+cmake --build --preset windows-msvc
+ctest --preset windows-msvc
+<venv-python> -m pytest python/tests -q
 ```
 
-Do not claim a change is verified without running them. `AGENTS.md` keeps the authoritative command list.
+`<venv-python>` is `.venv/Scripts/python` on Windows and `.venv/bin/python` on Linux. Presets: `windows-msvc` (Visual Studio 2022)
+and `linux-gcc` (Ninja, system zlib/libjpeg: `apt install build-essential cmake ninja-build libjpeg-dev zlib1g-dev python3-venv`).
+`--use-feature=truststore` is only needed where Python's CA bundle fails (it does on the maintainer's Windows machine).
+CI (`.github/workflows/ci.yml`) runs the Linux sequence on every push and PR to `dev`/`main`, and Windows on PRs to `main`, manual runs, and PRs to `dev` that change the build (`CMakeLists.txt`, `cmake/`,
+`CMakePresets.json`, `native/`, `.github/workflows/`).
+
+Do not claim a change is verified without running them. CI must be green before a PR is merged. `AGENTS.md` keeps the authoritative command list.
 
 ## Benchmark results
 
@@ -72,4 +81,4 @@ refuses to publish if any of these remains.
 
 LGPL-3.0-or-later. Every source file starts with the same LGPL header template as webarkit/webarkit (file name, project,
 `SPDX-License-Identifier: LGPL-3.0-or-later`, the LGPL notice, `Copyright 2026 WebARKit.`, author). Add it with
-`.venv/Scripts/python scripts/license_headers.py --fix`; `pytest` fails if a file lacks it.
+`<venv-python> scripts/license_headers.py --fix`; `pytest` fails if a file lacks it.

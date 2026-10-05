@@ -95,3 +95,46 @@ def test_publish_refuses_unknown_binary_files(tmp_path):
     p = subprocess.run([sys.executable, str(root / "scripts/publish_results.py"), "x", "--from", str(src), "--dry-run"],
                        capture_output=True, text=True)
     assert p.returncode == 1 and "blob.bin" in p.stderr
+
+
+def test_release_commands_target_the_results_repository():
+    from nftbench.publish import release_commands
+    cmds = release_commands("webarkit/artoolkit-nft-bench-results", "phase-2", "phase-2/phase-2.tar.gz", "abc1234")
+    tag, push, create = cmds
+    assert tag[:3] == ["git", "tag", "-a"] and "phase-2" in tag and "abc1234" in tag
+    assert push == ["git", "push", "origin", "phase-2"]
+    assert create[:3] == ["gh", "release", "create"] and "--verify-tag" in create
+    assert create[create.index("--repo") + 1] == "webarkit/artoolkit-nft-bench-results"
+    assert "phase-2/phase-2.tar.gz" in create
+
+
+README_TEMPLATE = """# results
+
+intro
+
+<!-- publications:start -->
+| publication | milestone | code release | SHA-256 | data release |
+|---|---|---|---|---|
+<!-- publications:end -->
+
+rules
+"""
+
+
+def test_publications_table_gets_a_row_per_publication():
+    from nftbench.publish import add_publication_row
+    t = add_publication_row(README_TEMPLATE, "phase-1", "M1 — Native baseline", "v0.1.0", "95e9c8724d6c", "phase-1")
+    t = add_publication_row(t, "phase-2", "M4 — WASM control", None, "abcdef012345", None)
+    rows = [l for l in t.splitlines() if l.startswith("| phase-")]
+    assert len(rows) == 2 and rows[0].startswith("| phase-1 ") and "v0.1.0" in rows[0] and "| - |" in rows[1]
+    assert t.endswith("rules\n") and "intro" in t
+
+
+def test_publications_table_refuses_duplicates_and_missing_markers():
+    import pytest
+    from nftbench.publish import add_publication_row
+    t = add_publication_row(README_TEMPLATE, "phase-1", "M1", "v0.1.0", "aa", "phase-1")
+    with pytest.raises(ValueError):
+        add_publication_row(t, "phase-1", "M1", "v0.1.0", "aa", "phase-1")
+    with pytest.raises(ValueError):
+        add_publication_row("# no markers\n", "phase-1", "M1", "v0.1.0", "aa", "phase-1")

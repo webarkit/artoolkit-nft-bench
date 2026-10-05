@@ -74,3 +74,34 @@ def scrub_text(text: str, repo_root: Path) -> str:
 def manifest_entry(name: str, archive: bytes, code_commit: str, results_commit: str, release_tag: str | None) -> dict:
     return {"name": name, "sha256": hashlib.sha256(archive).hexdigest(), "size": len(archive),
             "code_commit": code_commit, "results_commit": results_commit, "release_tag": release_tag}
+
+
+def release_commands(results_repo: str, name: str, archive_relpath: str, results_commit: str) -> list[list[str]]:
+    """Commands (run inside the local clone of the results repository) that create the optional immutable release.
+
+    The release lives in the results repository, next to the data (see ADR-0001, "To revisit"): an annotated tag `<name>`
+    on the commit that stores the archive, then a GitHub Release on that tag with the archive attached.
+    """
+    return [
+        ["git", "tag", "-a", name, results_commit, "-m", f"{name} raw results"],
+        ["git", "push", "origin", name],
+        ["gh", "release", "create", name, archive_relpath, "--repo", results_repo, "--verify-tag",
+         "--title", f"{name} raw results", "--notes", "SHA-256 of the archive: see results/manifest.json in "
+         "webarkit/artoolkit-nft-bench."],
+    ]
+
+
+START, END = "<!-- publications:start -->", "<!-- publications:end -->"
+
+
+def add_publication_row(readme: str, name: str, milestone: str, code_release: str | None, sha256: str,
+                        data_release: str | None) -> str:
+    """Append one row to the publications table of the results repository README (between the two markers)."""
+    if START not in readme or END not in readme:
+        raise ValueError("README has no publications table markers")
+    head, rest = readme.split(START, 1)
+    table, tail = rest.split(END, 1)
+    if any(line.startswith(f"| {name} |") for line in table.splitlines()):
+        raise ValueError(f"publication {name} already listed")
+    row = f"| {name} | {milestone} | {code_release or '-'} | `{sha256}` | {data_release or '-'} |\n"
+    return head + START + table.rstrip("\n") + "\n" + row + END + tail

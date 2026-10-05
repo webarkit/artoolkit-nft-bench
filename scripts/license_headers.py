@@ -88,6 +88,30 @@ def strip_old(text: str) -> str:
     return "".join(lines)
 
 
+def is_source(path: Path) -> bool:
+    try:
+        rel = path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return False
+    return not rel.startswith(EXCLUDE_PREFIXES) and (path.suffix in SOURCE_SUFFIXES or path.name in SOURCE_NAMES)
+
+
+def fix_file(p: Path) -> bool:
+    """Add the header to one file if it is a source without one. Returns True if the file was changed."""
+    if not p.is_file() or not is_source(p):
+        return False
+    text = p.read_text(encoding="utf-8")
+    if has_header(text):
+        return False
+    body = strip_old(text)
+    shebang = ""
+    if body.startswith("#!"):
+        shebang, body = body.split("\n", 1)
+        shebang += "\n"
+    p.write_text(shebang + header(p) + ("\n" if body and not body.startswith("\n") else "") + body, encoding="utf-8", newline="\n")
+    return True
+
+
 def main(argv: list[str]) -> int:
     fix = "--fix" in argv
     missing = []
@@ -98,12 +122,7 @@ def main(argv: list[str]) -> int:
         if not fix:
             missing.append(p.relative_to(ROOT).as_posix())
             continue
-        body = strip_old(text)
-        shebang = ""
-        if body.startswith("#!"):
-            shebang, body = body.split("\n", 1)
-            shebang += "\n"
-        p.write_text(shebang + header(p) + ("\n" if body and not body.startswith("\n") else "") + body, encoding="utf-8")
+        fix_file(p)
     for m in missing:
         print(f"missing license header: {m}")
     return 1 if missing else 0

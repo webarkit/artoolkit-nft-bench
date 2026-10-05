@@ -10,3 +10,4 @@ Critical rules, inlined:
 - PRs target `dev`, never `main`. Conventional Commits (`type(scope): summary`). Everything in English.
 - Results: development runs in `results/local/`; publications only via the publish script to `webarkit/artoolkit-nft-bench-results` (ADR-0001). No raw results, frame banks or build trees in this repo.
 - Published files never contain host names, user names, emails, absolute paths, environment variables, tokens, IP/MAC addresses or device serials.
+- Folder rules: `native/AGENTS.md`, `python/AGENTS.md`, `data/AGENTS.md`, `results/AGENTS.md`. Procedures: `.claude/skills/*/SKILL.md` (run-benchmark, publish-results, new-engine-runner, license-header).

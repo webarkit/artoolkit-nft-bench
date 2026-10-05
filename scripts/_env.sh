@@ -1,6 +1,5 @@
-#!/bin/bash
 #
-#  make_marker.sh
+#  _env.sh
 #  artoolkit-nft-bench
 #
 #  This file is part of artoolkit-nft-bench.
@@ -25,16 +24,9 @@
 #  Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
 #
 
-# Generate an NFT dataset reproducibly with the upstream genTexData tool.
-#   scripts/make_marker.sh <jpg> <dpi> <min_dpi> <max_dpi> <level> <leveli> <outdir>
-set -euo pipefail
-[ $# -eq 7 ] || { echo "usage: $0 <jpg> <dpi> <min_dpi> <max_dpi> <level> <leveli> <outdir>" >&2; exit 2; }
-jpg=$1 dpi=$2 mindpi=$3 maxdpi=$4 level=$5 leveli=$6 out=$7
-source "$(dirname "$0")/_env.sh"
-gen=$(tool genTexData)
-mkdir -p "$out"
-cp "$jpg" "$out/"
-cd "$out"
-"$gen" "$(basename "$jpg")" -dpi="$dpi" -min_dpi="$mindpi" -max_dpi="$maxdpi" -level="$level" -leveli="$leveli" < /dev/null \
-    > genTexData.log 2>&1
-ls "${jpg##*/}" >/dev/null && echo "dataset written to $out (log: genTexData.log, not committed)"
+# Shared by the bash scripts: the venv's Python and the native tools, on Windows (Git Bash) and Linux.
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+if [ -x "$ROOT/.venv/Scripts/python.exe" ]; then PY="$ROOT/.venv/Scripts/python.exe"
+elif [ -x "$ROOT/.venv/bin/python" ]; then PY="$ROOT/.venv/bin/python"
+else PY=python3; fi
+tool() { "$PY" -m nftbench.tools which "$1"; }

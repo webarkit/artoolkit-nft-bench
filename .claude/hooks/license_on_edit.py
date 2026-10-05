@@ -1,6 +1,5 @@
-#!/bin/bash
 #
-#  make_marker.sh
+#  license_on_edit.py
 #  artoolkit-nft-bench
 #
 #  This file is part of artoolkit-nft-bench.
@@ -25,16 +24,30 @@
 #  Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
 #
 
-# Generate an NFT dataset reproducibly with the upstream genTexData tool.
-#   scripts/make_marker.sh <jpg> <dpi> <min_dpi> <max_dpi> <level> <leveli> <outdir>
-set -euo pipefail
-[ $# -eq 7 ] || { echo "usage: $0 <jpg> <dpi> <min_dpi> <max_dpi> <level> <leveli> <outdir>" >&2; exit 2; }
-jpg=$1 dpi=$2 mindpi=$3 maxdpi=$4 level=$5 leveli=$6 out=$7
-source "$(dirname "$0")/_env.sh"
-gen=$(tool genTexData)
-mkdir -p "$out"
-cp "$jpg" "$out/"
-cd "$out"
-"$gen" "$(basename "$jpg")" -dpi="$dpi" -min_dpi="$mindpi" -max_dpi="$maxdpi" -level="$level" -leveli="$leveli" < /dev/null \
-    > genTexData.log 2>&1
-ls "${jpg##*/}" >/dev/null && echo "dataset written to $out (log: genTexData.log, not committed)"
+"""PostToolUse hook: add the project LGPL header to a source file that was just written without one.
+
+Never fails a tool call: missing files, non-source files and unexpected input are silent no-ops.
+"""
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+
+def main() -> int:
+    try:
+        payload = json.load(sys.stdin)
+        path = Path(payload["tool_input"]["file_path"])
+        if not path.is_absolute():
+            path = Path(payload.get("cwd") or ROOT) / path
+        from license_headers import fix_file
+        fix_file(path)
+    except Exception:
+        pass
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
