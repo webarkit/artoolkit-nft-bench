@@ -116,7 +116,7 @@ ctest --preset windows-msvc
 | `native/` | `nft_export` (synthetic banks), `nft_run` (native runner), unit tests |
 | `python/nftbench/` | schemas, scorer, real-video bank, corner segmentation, results publisher |
 | `data/markers/`, `data/videos/` | NFT datasets named after their parameters; test clip with provenance |
-| `scripts/` | `run_phase1.sh`, `make_marker.sh`, `make_video_bank.py`, `segment_bank.py`, `publish_results.py`, `license_headers.py` |
+| `scripts/` | `check_recording.py`, `make_chessboard.py`, `run_phase1.sh`, `make_marker.sh`, `make_video_bank.py`, `segment_bank.py`, `publish_results.py`, `license_headers.py` |
 | `results/` | result tables and `manifest.json` (raw results live in the results repository) |
 | `docs/` | [spec](docs/superpowers/specs/2026-10-03-artoolkit-nft-bench-design.md), [plans](docs/superpowers/plans/), [ADRs](docs/adr/) |
 

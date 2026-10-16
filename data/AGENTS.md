@@ -8,4 +8,6 @@ Adds to the root [AGENTS.md](../AGENTS.md); never overrides it.
 * `genTexData.log` stays local (git-ignored).
 * `videos/`: every clip has an entry in `videos/README.md` with source, commit, format and license. Add media only when it serves a
   reproducible measurement, as small as the measurement allows: every replacement stays in git history forever.
+* New footage follows [docs/recording-guide.md](../docs/recording-guide.md) and is checked with
+  `scripts/check_recording.py videos <dir>` before committing; personal metadata is stripped.
 * `cameras/` (from M3): camera calibrations, one JSON per device and recording mode, with the calibration video's provenance.
