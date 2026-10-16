@@ -31,7 +31,7 @@ Tracked in [#13](https://github.com/webarkit/artoolkit-nft-bench/issues/13); the
 ### The calibration chessboard
 
 ```bash
-<venv-python> scripts/make_chessboard.py --out chessboard-9x6-25mm.pdf
+<venv-python> scripts/make_chessboard.py     # writes results/local/print/chessboard-9x6-25mm.pdf (git-ignored)
 ```
 
 * Print at **100% / "actual size"** — never "fit to page". Check the 100 mm ruler printed under the board, then measure one
