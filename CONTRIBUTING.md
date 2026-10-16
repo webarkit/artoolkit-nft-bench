@@ -36,6 +36,9 @@ Link the issue in the PR's Development sidebar, and close it by hand with a comm
   `docs`, `ci`. Omit the scope for repository-wide changes.
 * Breaking changes: `!` after type/scope, or a `BREAKING CHANGE:` footer.
 
+Every commit that works on an issue names it in the message body: `Refs #n` when the work is partial, `Closes #n` when the
+commit completes it. (On `dev`, `Closes #n` does not close the issue by itself; see above.)
+
 Examples: `feat(runner): add native nft_run`, `fix(scorer): exclude frames without ground truth`, `docs: update README`.
 
 Every repository artifact (code, comments, commits, PR titles and bodies, issues, docs) is written in English.
