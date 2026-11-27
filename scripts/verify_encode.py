@@ -38,7 +38,10 @@ Prints one JSON object with every value and `pass`; exits 1 when a criterion fai
   per-frame luma PSNR and SSIM of the encode against the original (ffmpeg's psnr and ssim filters, both decoded the same
   way) above the given thresholds. The per-corner difference of the segmented corners (TL, TR, BR, BL) on frames both
   accept is reported, not a criterion; with `--still`, so is the original's own frame-to-frame corner jitter, which on a
-  still clip is segment_quad's noise floor on that footage.
+  still clip is segment_quad's noise floor on that footage. Also reported, not a criterion: the sharpness of the encode
+  against the original (nftbench.quality.sharpness, the variance of the Laplacian inside the original's quad) on every
+  third frame the original accepts, at full size and at 480x270 (cv2.INTER_AREA, the quad scaled with the frame), the
+  processing size webarkit's bench uses for 1280x720 clips.
 """
 from __future__ import annotations
 
@@ -52,9 +55,11 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from nftbench.quality import SHARPNESS_MIN, sharpness
 from nftbench.segment import segment_quad
 
 CORNERS = ("TL", "TR", "BR", "BL")
+PROC_SIZE = (480, 270)          # webarkit's bench processing size for 1280x720 clips
 
 
 def timestamps(path: str) -> tuple[str, list[int]]:
@@ -109,6 +114,30 @@ def per_corner(d: np.ndarray) -> dict:
     return {c: {"median": float(np.median(d[:, j])), "p99": float(np.percentile(d[:, j], 99))} for j, c in enumerate(CORNERS)}
 
 
+def sharpness_ratio(orig: str, enc: str, quads: list, step: int = 3) -> dict:
+    """Sharpness of the encode against the original inside the original's quad, on every `step`-th frame it accepts."""
+    full, proc, s_orig, s_enc = [], [], [], []
+    for k, (fo, fe) in enumerate(zip(frames(orig), frames(enc))):
+        if k % step or quads[k] is None:
+            continue
+        go, ge = cv2.cvtColor(fo, cv2.COLOR_BGR2GRAY), cv2.cvtColor(fe, cv2.COLOR_BGR2GRAY)
+        so, se = sharpness(go, quads[k]), sharpness(ge, quads[k])
+        s_orig.append(so)
+        s_enc.append(se)
+        full.append(se / so)
+        scale = np.array([PROC_SIZE[0] / go.shape[1], PROC_SIZE[1] / go.shape[0]])
+        po, pe = (cv2.resize(g, PROC_SIZE, interpolation=cv2.INTER_AREA) for g in (go, ge))
+        proc.append(sharpness(pe, quads[k] * scale) / sharpness(po, quads[k] * scale))
+
+    def stats(v):
+        return {"median": float(np.median(v)), "p10": float(np.percentile(v, 10)), "p90": float(np.percentile(v, 90))} if v else {}
+    return {"frames": len(full), "step": step, "ratio_full": stats(full),
+            f"ratio_{PROC_SIZE[0]}x{PROC_SIZE[1]}": stats(proc),
+            "sharp_share_orig": float(np.mean(np.array(s_orig) >= SHARPNESS_MIN)) if s_orig else None,
+            "sharp_share_enc": float(np.mean(np.array(s_enc) >= SHARPNESS_MIN)) if s_enc else None,
+            "sharpness_min": SHARPNESS_MIN}
+
+
 def check_chessboard(orig: str, enc: str, pattern=(9, 6), square_mm=25.0, step=5) -> dict:
     objp = np.zeros((pattern[0] * pattern[1], 3), np.float32)
     objp[:, :2] = np.mgrid[0:pattern[0], 0:pattern[1]].T.reshape(-1, 2) * square_mm
@@ -160,6 +189,7 @@ def check_poster(orig: str, enc: str, a) -> dict:
         pairs = [k for k in range(1, n) if acc["orig"][k] is not None and acc["orig"][k - 1] is not None]
         j = np.array([np.linalg.norm(align(acc["orig"][k], acc["orig"][k - 1]) - acc["orig"][k - 1], axis=1) for k in pairs])
         r["corners_orig_jitter"] = {"pairs": len(pairs), **per_corner(j)}
+    r["sharpness_enc_vs_orig"] = sharpness_ratio(orig, enc, acc["orig"])
     lq = luma_quality(orig, enc)
     p, s = np.array(lq["psnr_y"]), np.array(lq["ssim_y"])
     if not len(p) or not len(s):

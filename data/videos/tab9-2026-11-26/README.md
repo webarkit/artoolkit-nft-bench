@@ -167,6 +167,22 @@ move: the largest frame-to-frame image shift is 0.5 px), per corner, px at 1280�
 |---|---|---|---|---|
 | 413 | 0.34 / 1.28 | 0.25 / 1.20 | 1.29 / 8.16 | 0.57 / 2.28 |
 
+### Sharpness, reported (not a criterion)
+
+`scripts/verify_encode.py` (added 2026-11-27, after the maintainer asked for an explanation of the quality check's sharpness
+drop on `fast`): the sharpness of the encode divided by the original's, the variance of the Laplacian inside the original's
+segmented poster (`nftbench.quality.sharpness`, as in `check_recording.py quality`), on every third frame the original
+accepts. At full size and at 480×270, the processing size webarkit's bench uses for 1280×720 clips (`cv2.INTER_AREA`, the
+quad scaled with the frame). The last two columns: share of those frames with sharpness ≥ 60 (`SHARPNESS_MIN`) at 1280×720.
+
+| clip | frames | ratio at 1280×720: median / p10 / p90 | ratio at 480×270: median / p10 / p90 | sharp, original | sharp, encode |
+|---|---|---|---|---|---|
+| `static-tripod` | 138 | 0.923 / 0.892 / 0.976 | 0.994 / 0.986 / 1.000 | 100% | 100% |
+| `fast` | 293 | 0.742 / 0.675 / 0.885 | 0.994 / 0.975 / 1.014 | 40% | 6% |
+
+`check_recording.py quality`, which analyses every second frame and counts a frame it cannot segment as not sharp, reports
+`fast`'s sharp share as 40% on the original and 11% on the encode; `static-tripod` stays at 100%.
+
 ## Checks on the committed files
 
 From this branch, based on `dev` at PR #25's merge commit `5f2fa0f1d5e9544742e4e24b630089a15aec221a`:
@@ -191,6 +207,10 @@ exist yet. ffprobe shows no audio stream, no rotation or location tag and no dev
 * Video stabilisation, focus and exposure were not recorded: whether stabilisation was off, and focus and exposure locked, is
   unknown. A calibration from `calib-chessboard.mp4` is only valid for the other clips if those settings were the same and
   fixed.
+* The encode removes fine detail at 1280×720 (median Laplacian-variance ratio 0.74 inside the poster on `fast`, mostly sensor
+  grain), but not at 480×270, webarkit's bench processing size (0.99); `segment.py`'s acceptance and the calibration are
+  unchanged. The quality check's sharpness share for `fast` drops from 40% to 11% for that reason; `fast` is exempt from that
+  rule.
 * The camera calibration is not computed here (#10); the calibrations above only compare the encode with its original.
 * Only three of the guide's clips; no photos.
 * The originals carry contradictory colour tags (see above); the committed files declare what decoders actually use.
