@@ -31,7 +31,9 @@
 
 Prints one JSON object with every value and `pass`; exits 1 when a criterion fails (a missing tool or file raises instead). Criteria (data/videos/tab9-2026-11-26/README.md):
 
-* every clip: the same frame count and the same frame timestamps (pts and time base, read with ffprobe), exactly;
+* every clip: the same frame count and the same frame timestamps (pts and time base, read with ffprobe), exactly; OpenCV
+  decodes as many frames from each file as ffprobe counts (a read failure fails the verification, naming the file and the
+  frame), and the two files have the same frame size; both are checked before any other criterion;
 * chessboard: on every 5th frame, cv2.findChessboardCornersSB (9x6) finds the board in the same frames; a calibration
   (cv2.calibrateCamera, 25 mm squares) from each file: |dfx|, |dfy|, |dcx|, |dcy| <= 0.5 px and |dRMS| <= 0.05 px;
 * poster: nftbench.segment.segment_quad (confidence >= 0.5) accepts the same frames, within `--tol-frac` of the clip;
@@ -77,6 +79,27 @@ def frames(path: str):
             break
         yield f
     cap.release()
+
+
+def decode_check(paths: dict, expected: dict) -> dict:
+    """Decode every frame of each file in `paths` ({name: path}) with OpenCV: the count must equal `expected[name]` (ffprobe's)
+    and every frame must have one size, the same in all files."""
+    r = {"decode_errors": [], "frame_size": {}}
+    for name, path in paths.items():
+        count, sizes = 0, set()
+        for f in frames(path):
+            sizes.add((f.shape[1], f.shape[0]))
+            count += 1
+        r[f"decoded_{name}"] = count
+        if count != expected[name]:
+            r["decode_errors"].append(f"{path}: OpenCV decoded {count} of {expected[name]} frames, the read failed at frame {count}")
+        if len(sizes) > 1:
+            r["decode_errors"].append(f"{path}: frame size changes within the file: {sorted(sizes)}")
+        r["frame_size"][name] = sorted(sizes)[0] if sizes else None
+    if len(set(r["frame_size"].values())) > 1:
+        r["decode_errors"].append("frame sizes differ: " + ", ".join(f"{n} {s}" for n, s in r["frame_size"].items()))
+    r["decode_ok"] = not r["decode_errors"]
+    return r
 
 
 def luma_quality(orig: str, enc: str) -> dict:
@@ -141,27 +164,31 @@ def sharpness_ratio(orig: str, enc: str, quads: list, step: int = 3) -> dict:
 def check_chessboard(orig: str, enc: str, pattern=(9, 6), square_mm=25.0, step=5) -> dict:
     objp = np.zeros((pattern[0] * pattern[1], 3), np.float32)
     objp[:, :2] = np.mgrid[0:pattern[0], 0:pattern[1]].T.reshape(-1, 2) * square_mm
-    det, size = {}, None
+    det, size = {}, {}
     for name, path in (("orig", orig), ("enc", enc)):
         det[name] = {}
         for k, f in enumerate(frames(path)):
+            size.setdefault(name, (f.shape[1], f.shape[0]))      # (width, height), what calibrateCamera takes
             if k % step:
                 continue
             g = cv2.cvtColor(f, cv2.COLOR_BGR2GRAY)
-            size = g.shape[::-1]
             found, c = cv2.findChessboardCornersSB(g, pattern)
             if found:
                 det[name][k] = c.reshape(-1, 1, 2).astype(np.float32)
     so, se = set(det["orig"]), set(det["enc"])
-    r = {"found_orig": len(so), "found_enc": len(se), "found_same_frames": so == se,
+    r = {"frame_size_orig": size.get("orig"), "frame_size_enc": size.get("enc"),
+         "found_orig": len(so), "found_enc": len(se), "found_same_frames": so == se,
          "found_only_orig": sorted(so - se), "found_only_enc": sorted(se - so)}
+    if size.get("orig") != size.get("enc"):        # corners in different pixel grids: the calibrations are not comparable
+        r.update(calib=None, delta=None, calib_ok=False, ok=False)
+        return r
     if not so or not se:
         r.update(calib=None, delta=None, calib_ok=False, ok=False)
         return r
     cal = {}
     for name in ("orig", "enc"):
         ks = sorted(det[name])
-        rms, K, _, _, _ = cv2.calibrateCamera([objp] * len(ks), [det[name][k] for k in ks], size, None, None)
+        rms, K, _, _, _ = cv2.calibrateCamera([objp] * len(ks), [det[name][k] for k in ks], size[name], None, None)
         cal[name] = {"rms": rms, "fx": K[0, 0], "fy": K[1, 1], "cx": K[0, 2], "cy": K[1, 2]}
     delta = {k: abs(cal["enc"][k] - cal["orig"][k]) for k in ("fx", "fy", "cx", "cy", "rms")}
     r.update(calib=cal, delta=delta,
@@ -219,6 +246,11 @@ def main() -> int:
     r = {"kind": a.kind, "orig": Path(a.orig).name, "enc": Path(a.enc).name, "frames_orig": len(p_o), "frames_enc": len(p_e),
          "timestamps_identical": tb_o == tb_e and p_o == p_e and None not in p_o}
     if not r["timestamps_identical"]:          # the per-frame comparisons below pair frames by index: stop here
+        r["pass"] = False
+        print(json.dumps(r, default=float))
+        return 1
+    r.update(decode_check({"orig": a.orig, "enc": a.enc}, {"orig": len(p_o), "enc": len(p_e)}))
+    if not r["decode_ok"]:                     # a criterion read on fewer frames, or other pixel grids, would mean nothing
         r["pass"] = False
         print(json.dumps(r, default=float))
         return 1

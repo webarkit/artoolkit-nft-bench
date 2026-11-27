@@ -27,7 +27,10 @@
 
 # Make a recording session's committed clips from the camera originals (docs/recording-guide.md).
 #
-#   scripts/encode_session.sh <originals_dir> <out_dir> <name>=<original>:<crf> [...]
+#   scripts/encode_session.sh [--force] <originals_dir> <out_dir> <name>=<original>:<crf> [...]
+#
+# Every spec is checked before the first encode: <name> must be a file name (no '/', '\' or '..'), unique among the outputs,
+# not an input, and not an existing file unless --force is given. A refusal names the spec and encodes nothing.
 #
 # Example (the Tab 9 session of 2026-11-26, see data/videos/tab9-2026-11-26/README.md):
 #
@@ -44,16 +47,39 @@
 # so it decodes to the same colours as the original.
 # The originals are never modified; the script prints the SHA-256 of every input and output.
 set -euo pipefail
-[ $# -ge 3 ] || { echo "usage: $0 <originals_dir> <out_dir> <name>=<original>:<crf> [...]" >&2; exit 2; }
+force=0
+if [ "${1:-}" = --force ]; then force=1; shift; fi
+[ $# -ge 3 ] || { echo "usage: $0 [--force] <originals_dir> <out_dir> <name>=<original>:<crf> [...]" >&2; exit 2; }
 src=$1 out=$2
 shift 2
+refuse() { echo "refused: $1: $2" >&2; exit 2; }
+# Validate every spec before the first encode.
+names=() inputs=()
+for spec in "$@"; do
+    name=${spec%%=*} rest=${spec#*=}
+    orig=${rest%:*} crf=${rest##*:}
+    [ "$name" != "$spec" ] && [ "$orig" != "$rest" ] && [ -n "$name" ] && [[ $crf =~ ^[0-9]+$ ]] || refuse "$spec" "bad clip spec"
+    case $name in */* | *\\* | *..* | . ) refuse "$spec" "the output name must be a file name, without '/', '\\' or '..'" ;; esac
+    [ -f "$src/$orig" ] || { echo "missing original: $src/$orig ($spec)" >&2; exit 1; }
+    for n in ${names[@]+"${names[@]}"}; do
+        [ "$n" != "$name" ] || refuse "$spec" "output name '$name' given twice"
+    done
+    names+=("$name")
+    inputs+=("$(realpath -m -- "$src/$orig")")
+done
+for spec in "$@"; do
+    name=${spec%%=*}
+    dest=$(realpath -m -- "$out/$name")
+    for i in "${inputs[@]}"; do
+        [ "$dest" != "$i" ] || refuse "$spec" "output $out/$name is an input"
+    done
+    [ "$force" = 1 ] || [ ! -e "$out/$name" ] || refuse "$spec" "output $out/$name exists (pass --force to overwrite)"
+done
 mkdir -p "$out"
 for spec in "$@"; do
     name=${spec%%=*} rest=${spec#*=}
     orig=${rest%:*} crf=${rest##*:}
-    [ "$name" != "$spec" ] && [ "$orig" != "$rest" ] && [[ $crf =~ ^[0-9]+$ ]] || { echo "bad clip spec: $spec" >&2; exit 2; }
     in="$src/$orig"
-    [ -f "$in" ] || { echo "missing original: $in" >&2; exit 1; }
     ffmpeg -hide_banner -loglevel error -nostdin -y -copyts -i "$in" \
         -map 0:v:0 -an -sn -dn -map_metadata -1 -map_chapters -1 -fflags +bitexact -flags:v +bitexact \
         -vf "scale=1280:720,format=yuv420p,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709" \

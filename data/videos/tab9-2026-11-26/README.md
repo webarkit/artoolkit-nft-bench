@@ -10,8 +10,13 @@ clips not recorded (below).
 * **Device:** the Tab 9 used for webarkit's M9 (Android 15; M9's exports label it `Tab_9_WiFi`).
 * **App:** Open Camera 1.56.2.
 * **Settings:** 1280×720, fixed 30 fps, every setting the same for the three clips (the maintainer's statement).
-  **Not recorded:** Open Camera's video stabilisation, focus and exposure settings. Zoom, HDR and the other settings in the
-  guide's table were not written down either beyond "the same for the three clips".
+  Open Camera's settings as read by the maintainer on 2026-11-27, unchanged since the session (his statement):
+  * **video stabilisation:** off (this Open Camera on the Tab 9 offers no stabilisation option in its video settings);
+  * **zoom:** 1×, never changed;
+  * **focus:** mode "Continuous", not locked;
+  * **exposure:** not locked (no exposure lock used).
+
+  HDR and the guide's other settings were not written down beyond "the same for the three clips".
 * **Date and order:** 2026-11-26, local time 23:08 (`fast`), 23:19 (`static-tripod`), 23:20 (`calib-chessboard`); not the
   guide's order (calibration first). Only these three of the guide's clips were recorded.
 * **Scene:** the poster taped to a plain white wall.
@@ -58,6 +63,9 @@ scripts/encode_session.sh <originals_dir> data/videos/tab9-2026-11-26 \
     calib-chessboard.mp4=VID_20261126_232056.mp4:22
 ```
 
+The script checks every spec before the first encode and refuses an existing output; re-making the committed files needs
+`--force` as its first argument.
+
 Video only, the camera's container and stream metadata removed (only the muxer's and x264's own encoder tags remain), H.264 High (`libx264 -preset slow`), yuv420p, 1280×720, `+faststart`.
 The encodes are deterministic: a second run gave byte-identical files.
 
@@ -67,6 +75,10 @@ The encodes are deterministic: a second run gave byte-identical files.
 | `static-tripod.mp4` | 18 | 5,316,300 | `7df4e1a57ee39025ffc93fb211c2d0bf3d522d9c483531d98d1b05f89c2f271d` | 414 | 13.8 s |
 | `calib-chessboard.mp4` | 22 | 13,061,396 | `1805823bd12dc2f9e025ecf551ddcb2ba9bf180e5b6248f3069014f1d575458c` | 1,686 | 56.2 s |
 | total | | 28,677,653 (28.7 MB, limit 40 MB) | | | |
+
+**Lengths.** The guide's and webarkit#279's lengths ("about 20 s", "10 s") are what a clip needs at least. `fast` runs 29.9 s
+and `static-tripod` 13.8 s as recorded, and both are kept whole: a longer `fast` holds more lock starts, and `static-tripod`
+has no motion to trim (largest frame-to-frame shift 0.5 px). No clip is trimmed.
 
 Two encoder settings matter, both found before any measurement was read:
 
@@ -204,9 +216,9 @@ exist yet. ffprobe shows no audio stream, no rotation or location tag and no dev
 
 ## Limits
 
-* Video stabilisation, focus and exposure were not recorded: whether stabilisation was off, and focus and exposure locked, is
-  unknown. A calibration from `calib-chessboard.mp4` is only valid for the other clips if those settings were the same and
-  fixed.
+* Focus (Continuous) and exposure were not locked, although the guide asks for both locked if possible: focus and exposure
+  may have changed within and between clips. A calibration from `calib-chessboard.mp4` therefore holds for the other clips
+  only as far as the continuous focus kept the same focal distance; stabilisation was off and the zoom 1× throughout.
 * The encode removes fine detail at 1280×720 (median Laplacian-variance ratio 0.74 inside the poster on `fast`, mostly sensor
   grain), but not at 480×270, webarkit's bench processing size (0.99); `segment.py`'s acceptance and the calibration are
   unchanged. The quality check's sharpness share for `fast` drops from 40% to 11% for that reason; `fast` is exempt from that
