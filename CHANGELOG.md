@@ -8,6 +8,9 @@ line under `[Unreleased]`.
 
 ### Added
 
+- Footage: the Tab 9 session of 2026-11-26 (`data/videos/tab9-2026-11-26/`: `fast`, `static-tripod`, `calib-chessboard`),
+  re-encoded from the camera originals by `scripts/encode_session.sh` (original timestamps kept) and checked against them by
+  `scripts/verify_encode.py` (timestamps, segmentation acceptance, luma PSNR/SSIM, chessboard calibration).
 - Recording guide (`docs/recording-guide.md`): marker print and dpi, chessboard, tablet settings, the session's clips and photos,
   checks before committing.
 - `scripts/make_chessboard.py`: printable calibration chessboard (vector PDF, A4, with a 100 mm ruler), verified with OpenCV.
