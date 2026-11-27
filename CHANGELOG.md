@@ -11,6 +11,8 @@ line under `[Unreleased]`.
 - Recording guide (`docs/recording-guide.md`): marker print and dpi, chessboard, tablet settings, the session's clips and photos,
   checks before committing.
 - `scripts/make_chessboard.py`: printable calibration chessboard (vector PDF, A4, with a 100 mm ruler), verified with OpenCV.
+- `scripts/check_recording.py quality`: content checks per clip (ground truth share, sharpness, KPM detection on sampled
+  frames; chessboard detections, image coverage and tilt) with `ok`/`redo`, reasons and summary images.
 - `scripts/check_recording.py`: effective dpi of a printed marker with the matching `make_marker.sh` command; resolution, frame
   rate, variable timing and personal metadata (location, device, author) of recorded clips.
 

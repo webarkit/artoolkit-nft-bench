@@ -93,10 +93,33 @@ Slow, smooth movements beat fast ones for everything except `fast.mp4`: motion b
    ffmpeg -i in.mp4 -map_metadata -1 -c copy out.mp4
    ```
 
-3. Add a `README.md` in the session directory: device and app, the settings table above as used, marker print size and the dpi
+3. Check the **content** — best while everything is still set up, so a bad clip can be re-shot at once:
+
+   ```bash
+   <venv-python> scripts/check_recording.py quality data/videos/tab9-<yyyy-mm-dd>        --marker data/markers/pinball-d<dpi>-l2-i1/pinball --dpi <dpi>
+   ```
+
+   For every clip it prints `ok` or `redo` with the reason, and writes a summary image to `results/local/recording-check/`
+   (sampled frames with the segmented marker outline and their sharpness, and a strip along the clip: green frames are usable).
+
+   | clip | checked | `ok` when |
+   |---|---|---|
+   | marker clips | segmented corners (ground truth) | ≥ 80% of frames (`tilt` 60%, `occlusion` 50%) |
+   | | sharpness inside the marker (variance of the Laplacian) | ≥ 80% of frames above 60 (`fast` exempt) |
+   | | KPM detection on 10 sampled frames (with `--marker`, needs the native build) | ≥ 1 frame (`static-tripod` ≥ 8) |
+   | `calib-chessboard` | chessboard found, one frame in five | ≥ 40 frames |
+   | | coverage of a 3×3 grid over the image | ≥ 8 of 9 cells, corners of the image included |
+   | | tilted views (opposite edges differ by more than 6%) | ≥ 1/3 of detections |
+   | photos | ground truth and sharpness | both present |
+
+   The thresholds are first estimates (`python/nftbench/quality.py`); the report prints the measured values, so after the first
+   real session we can tell a bad clip from a threshold that needs adjusting. For reference, the existing `pinball-bench.mp4`
+   passes: ground truth 98%, sharp 98%, KPM 10/10.
+
+4. Add a `README.md` in the session directory: device and app, the settings table above as used, marker print size and the dpi
    computed, chessboard square size as measured, date, and anything unusual (light changes, a frame where the marker left the
    view). Add the session to `data/videos/README.md`.
-4. Size: keep each clip small (the existing clip is about 1 MB). Media stays in git history forever; if a session grows beyond
+5. Size: keep each clip small (the existing clip is about 1 MB). Media stays in git history forever; if a session grows beyond
    a few tens of MB, discuss it before committing (see `data/AGENTS.md`).
 
 ## `<venv-python>`
