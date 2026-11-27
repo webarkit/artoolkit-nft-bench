@@ -33,7 +33,7 @@
 #
 #   scripts/encode_session.sh ../media-originals/tab9-2026-11-26 data/videos/tab9-2026-11-26 \
 #       fast.mp4=VID_20261126_230851.mp4:18 static-tripod.mp4=VID_20261126_231929.mp4:18 \
-#       calib-chessboard.mp4=VID_20261126_232056.mp4:18
+#       calib-chessboard.mp4=VID_20261126_232056.mp4:22
 #
 # Each clip: video only (the audio is dropped), all container and stream metadata removed, H.264 (libx264, preset slow, the
 # given CRF), yuv420p at 1280x720, moov atom first. Frames are neither dropped, duplicated nor retimed: every frame keeps

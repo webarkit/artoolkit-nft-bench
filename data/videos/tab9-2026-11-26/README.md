@@ -25,8 +25,8 @@ clips not recorded (below).
 
 ## The originals
 
-Kept outside every repository, at `D:/kalwalt-github/media-originals/tab9-2026-11-26/` on the maintainer's desktop, and never
-committed. Copied unchanged; the SHA-256 were checked before and after the copy.
+Kept outside every repository, on the maintainer's desktop in a `media-originals/tab9-2026-11-26/` folder beside the
+repository clones, and never committed. Copied unchanged; the SHA-256 were checked before and after the copy.
 
 | committed name | original file | local time | bytes | SHA-256 |
 |---|---|---|---|---|
@@ -58,7 +58,7 @@ scripts/encode_session.sh <originals_dir> data/videos/tab9-2026-11-26 \
     calib-chessboard.mp4=VID_20261126_232056.mp4:22
 ```
 
-Video only, container and stream metadata removed, H.264 High (`libx264 -preset slow`), yuv420p, 1280×720, `+faststart`.
+Video only, the camera's container and stream metadata removed (only the muxer's and x264's own encoder tags remain), H.264 High (`libx264 -preset slow`), yuv420p, 1280×720, `+faststart`.
 The encodes are deterministic: a second run gave byte-identical files.
 
 | file | CRF | bytes | SHA-256 | frames | duration |
@@ -112,12 +112,15 @@ below had been read, the maintainer replaced it** for `static-tripod` and `fast`
 Why: on `static-tripod`'s original, a still clip, `segment.py`'s bottom-right corner moves by up to about 8 px between
 consecutive frames (p99), and the encode-against-original corner differences barely moved from CRF 18 to CRF 12. The
 criterion measured `segment.py`'s instability on this footage, not what re-encoding loses. The ruling concerns the encode's
-fidelity only. The `calib-chessboard` criteria were kept; since CRF 18 passed with a wide margin, CRF 20 and 22 were also tried
-and the highest passing one kept.
+fidelity only. The `calib-chessboard` criteria were kept; since CRF 18 had passed with a wide margin, the same ruling asked for
+CRF 20 and 22 to be tried as well and the highest passing one kept, to leave room under the size limit: CRF 22 (24 was not
+tried).
 
 ### The tries that led to the ruling (first corner criterion)
 
-Per-frame difference = the largest of the four corner distances; OpenCV 5.0.0. Timestamps identical in every try.
+Per-frame difference = the largest of the four corner distances; OpenCV 5.0.0. Timestamps identical in every try. These
+figures come from a first version of the comparison script, which reported that per-frame maximum; the committed
+`verify_encode.py` reports each corner instead (the tables below), from which the same maximum can be taken.
 
 | clip | CRF | bytes | acceptance differs (limit) | corners median / p99 (px) | first criterion |
 |---|---|---|---|---|---|

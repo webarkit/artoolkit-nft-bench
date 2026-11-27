@@ -29,7 +29,7 @@
     python scripts/verify_encode.py chessboard <original> <encode>
     python scripts/verify_encode.py poster <original> <encode> [--still] [--tol-frac 0.01 --psnr-median 42 --psnr-min 38 --ssim-median 0.98]
 
-Prints one JSON object with every value and `pass`; exits 1 when a criterion fails. Criteria (data/videos/tab9-2026-11-26/README.md):
+Prints one JSON object with every value and `pass`; exits 1 when a criterion fails (a missing tool or file raises instead). Criteria (data/videos/tab9-2026-11-26/README.md):
 
 * every clip: the same frame count and the same frame timestamps (pts and time base, read with ffprobe), exactly;
 * chessboard: on every 5th frame, cv2.findChessboardCornersSB (9x6) finds the board in the same frames; a calibration
@@ -61,7 +61,7 @@ def timestamps(path: str) -> tuple[str, list[int]]:
     out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "frame=pts:stream=time_base",
                           "-of", "json", path], capture_output=True, text=True, check=True).stdout
     d = json.loads(out)
-    return d["streams"][0]["time_base"], [f["pts"] for f in d["frames"]]
+    return d["streams"][0]["time_base"], [f.get("pts") for f in d["frames"]]
 
 
 def frames(path: str):
@@ -126,6 +126,9 @@ def check_chessboard(orig: str, enc: str, pattern=(9, 6), square_mm=25.0, step=5
     so, se = set(det["orig"]), set(det["enc"])
     r = {"found_orig": len(so), "found_enc": len(se), "found_same_frames": so == se,
          "found_only_orig": sorted(so - se), "found_only_enc": sorted(se - so)}
+    if not so or not se:
+        r.update(calib=None, delta=None, calib_ok=False, ok=False)
+        return r
     cal = {}
     for name in ("orig", "enc"):
         ks = sorted(det[name])
@@ -150,7 +153,7 @@ def check_poster(orig: str, enc: str, a) -> dict:
     both = [k for k in range(n) if acc["orig"][k] is not None and acc["enc"][k] is not None]
     r = {"accepted_orig": sum(q is not None for q in acc["orig"]), "accepted_enc": sum(q is not None for q in acc["enc"]),
          "acceptance_differs": len(differ), "acceptance_differs_frames": differ, "acceptance_limit": a.tol_frac * n}
-    r["acceptance_ok"] = len(differ) <= a.tol_frac * n
+    r["acceptance_ok"] = len(differ) <= a.tol_frac * n and r["accepted_orig"] > 0     # nothing accepted proves nothing
     d = np.array([np.linalg.norm(align(acc["enc"][k], acc["orig"][k]) - acc["orig"][k], axis=1) for k in both])
     r["corners_enc_vs_orig"] = {"frames": len(both), **per_corner(d)}
     if a.still:
@@ -159,6 +162,9 @@ def check_poster(orig: str, enc: str, a) -> dict:
         r["corners_orig_jitter"] = {"pairs": len(pairs), **per_corner(j)}
     lq = luma_quality(orig, enc)
     p, s = np.array(lq["psnr_y"]), np.array(lq["ssim_y"])
+    if not len(p) or not len(s):
+        r.update(luma=None, luma_ok=False, ok=False)
+        return r
     r["luma"] = {"frames": len(p), "psnr_median": float(np.median(p)), "psnr_min": float(p.min()),
                  "ssim_median": float(np.median(s)), "ssim_min": float(s.min())}
     r["luma_ok"] = (len(p) == n and len(s) == n and r["luma"]["psnr_median"] >= a.psnr_median
@@ -181,7 +187,11 @@ def main() -> int:
     tb_o, p_o = timestamps(a.orig)
     tb_e, p_e = timestamps(a.enc)
     r = {"kind": a.kind, "orig": Path(a.orig).name, "enc": Path(a.enc).name, "frames_orig": len(p_o), "frames_enc": len(p_e),
-         "timestamps_identical": tb_o == tb_e and p_o == p_e}
+         "timestamps_identical": tb_o == tb_e and p_o == p_e and None not in p_o}
+    if not r["timestamps_identical"]:          # the per-frame comparisons below pair frames by index: stop here
+        r["pass"] = False
+        print(json.dumps(r, default=float))
+        return 1
     r.update(check_chessboard(a.orig, a.enc) if a.kind == "chessboard" else check_poster(a.orig, a.enc, a))
     r["pass"] = bool(r["timestamps_identical"] and r.pop("ok"))
     print(json.dumps(r, default=float))
